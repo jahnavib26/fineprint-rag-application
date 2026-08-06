@@ -13,7 +13,7 @@ def test_page_offsets_partition_the_text():
     assert len(parsed.pages) >= 2
     for page in parsed.pages:
         assert parsed.full_text[page.char_start : page.char_end].strip()
-    for prev, nxt in zip(parsed.pages, parsed.pages[1:]):
+    for prev, nxt in zip(parsed.pages, parsed.pages[1:], strict=False):
         assert nxt.char_start >= prev.char_end
 
 

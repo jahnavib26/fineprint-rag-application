@@ -14,14 +14,14 @@ def test_chunks_cover_the_whole_document():
 
     assert result.clauses[0].char_start == 0
     assert result.clauses[-1].char_end == len(parsed.full_text)
-    for prev, nxt in zip(result.clauses, result.clauses[1:]):
+    for prev, nxt in zip(result.clauses, result.clauses[1:], strict=False):
         assert nxt.char_start <= prev.char_end, "gap between chunks would lose text"
 
 
 def test_chunks_overlap_their_predecessor():
     parsed = pdf.extract_text(SYNTHETIC / MESSY)
     result = fallback.chunk(parsed)
-    for prev, nxt in zip(result.clauses, result.clauses[1:]):
+    for prev, nxt in zip(result.clauses, result.clauses[1:], strict=False):
         assert nxt.char_start < prev.char_end, "overlap keeps split sentences retrievable"
 
 

@@ -1,0 +1,7 @@
+# Repo-root lint config, so code outside backend/ (evals, scripts) is held to
+# the same rules. backend/pyproject.toml takes precedence for backend files.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]

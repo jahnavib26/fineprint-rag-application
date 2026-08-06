@@ -175,14 +175,18 @@ def render_report(summary: dict, outcomes: list[Outcome]) -> str:
         "# FinePrint eval report",
         "",
         f"- run: {datetime.now(UTC).isoformat(timespec='seconds')}",
-        f"- llm provider: `{settings.resolved_llm_provider()}` "
-        f"(smart=`{settings.model_for('smart') or '—'}`, "
-        f"cheap=`{settings.model_for('cheap') or '—'}`)",
+        (
+            f"- llm provider: `{settings.resolved_llm_provider()}` "
+            f"(smart=`{settings.model_for('smart') or '—'}`, "
+            f"cheap=`{settings.model_for('cheap') or '—'}`)"
+        ),
         f"- embeddings: `{settings.resolved_embedding_model()}`",
-        f"- cases: {summary['cases']} "
-        f"({summary['counts']['answerable']} answerable, "
-        f"{summary['counts']['not_covered']} not-covered, "
-        f"{summary['counts']['override']} override)",
+        (
+            f"- cases: {summary['cases']} "
+            f"({summary['counts']['answerable']} answerable, "
+            f"{summary['counts']['not_covered']} not-covered, "
+            f"{summary['counts']['override']} override)"
+        ),
         "",
         "## Metrics",
         "",

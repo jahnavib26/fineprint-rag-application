@@ -59,7 +59,7 @@ def test_offsets_round_trip_to_source_text(lease, doc_meta):
 def test_spans_are_ordered_and_disjoint(lease, doc_meta):
     _, result = _parse(doc_meta)
     spans = [(c.char_start, c.char_end) for c in result.clauses]
-    for (_, prev_end), (start, _) in zip(spans, spans[1:]):
+    for (_, prev_end), (start, _) in zip(spans, spans[1:], strict=False):
         assert start >= prev_end, "clause spans must not overlap"
 
 
