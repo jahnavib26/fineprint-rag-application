@@ -23,6 +23,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.config import EMBEDDING_DIMENSIONS
@@ -44,8 +45,9 @@ def _uuid() -> uuid.UUID:
     return uuid.uuid4()
 
 
-class Base(DeclarativeBase):
-    pass
+class Base(AsyncAttrs, DeclarativeBase):
+    """AsyncAttrs lets callers `await obj.awaitable_attrs.rel` instead of
+    pre-planning every eager load — lazy loads raise under asyncio otherwise."""
 
 
 class Document(Base):
@@ -138,6 +140,10 @@ class Amendment(Base):
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     action: Mapped[str] = mapped_column(String(16), default="amends")  # amends | replaces
     detected_reason: Mapped[str] = mapped_column(Text, default="")
+
+    # Both sides point at clauses, so the join columns must be explicit.
+    clause: Mapped[Clause] = relationship(foreign_keys=[clause_id])
+    superseded_by: Mapped[Clause] = relationship(foreign_keys=[superseded_by_clause_id])
 
 
 class Trace(Base):

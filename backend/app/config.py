@@ -72,8 +72,10 @@ class Settings(BaseSettings):
 
     top_k: int = 8
     # Below this cosine similarity a clause isn't relevant at all; if nothing
-    # clears it the answer is a refusal before a model is even asked.
-    min_similarity: float = 0.35
+    # clears it the answer is a refusal before a model is even asked. Leave
+    # unset to use the configured embedder's own floor — the right threshold is
+    # a property of the embedding space, not of the application.
+    min_similarity: float | None = None
 
     def resolved_llm_provider(self) -> LLMProvider:
         if self.llm_provider:

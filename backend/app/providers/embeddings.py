@@ -27,10 +27,20 @@ DIMENSIONS = EMBEDDING_DIMENSIONS
 
 class Embedder(Protocol):
     name: str
+    # Cosine similarity below which a clause isn't relevant at all. This is a
+    # property of the embedding space, not of the application: dense models put
+    # unrelated text around 0.2-0.4, while a sparse lexical vector scores near
+    # zero unless words literally overlap. A single global floor would either
+    # reject everything on one provider or nothing on the other.
+    relevance_floor: float
 
     async def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
 
     async def embed_query(self, text: str) -> list[float]: ...
+
+
+DENSE_RELEVANCE_FLOOR = 0.35
+LEXICAL_RELEVANCE_FLOOR = 0.05
 
 
 class VoyageEmbedder:
@@ -42,6 +52,7 @@ class VoyageEmbedder:
         self._client = voyageai.AsyncClient(api_key=api_key)
         self._model = model
         self.name = f"voyage:{model}"
+        self.relevance_floor = DENSE_RELEVANCE_FLOOR
 
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         out: list[list[float]] = []
@@ -68,6 +79,7 @@ class OpenAIEmbedder:
         self._client = AsyncOpenAI(api_key=api_key)
         self._model = model
         self.name = f"openai:{model}"
+        self.relevance_floor = DENSE_RELEVANCE_FLOOR
 
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         out: list[list[float]] = []
@@ -94,6 +106,7 @@ class GeminiEmbedder:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         self.name = f"gemini:{model}"
+        self.relevance_floor = DENSE_RELEVANCE_FLOOR
 
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return await self._embed(texts, "RETRIEVAL_DOCUMENT")
@@ -123,6 +136,7 @@ class HashingEmbedder:
     """
 
     name = "hashing-offline"
+    relevance_floor = LEXICAL_RELEVANCE_FLOOR
 
     _TOKEN = re.compile(r"[a-z0-9]+")
     _STOPWORDS = frozenset(
