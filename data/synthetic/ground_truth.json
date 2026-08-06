@@ -1,0 +1,376 @@
+[
+  {
+    "lease_id": "maple-court",
+    "strategy": "clause_tree",
+    "documents": [
+      {
+        "doc_id": "maple-court-lease",
+        "file": "maple-court-lease.pdf",
+        "kind": "original",
+        "signed_date": "2024-06-01",
+        "clauses": [
+          {
+            "number": "I",
+            "heading": "TERM AND RENT",
+            "body": "",
+            "clause_type": "other",
+            "parent": null
+          },
+          {
+            "number": "1",
+            "heading": "TERM",
+            "body": "The term of this Lease shall commence on July 1, 2024 and shall terminate on June 30, 2025, unless sooner terminated in accordance with the provisions hereof. Tenant shall surrender the premises in the condition received, ordinary wear and tear excepted.",
+            "clause_type": "termination",
+            "parent": "I"
+          },
+          {
+            "number": "2",
+            "heading": "MONTHLY RENT",
+            "body": "Tenant shall pay to Landlord monthly rent in the amount of Two Thousand One Hundred Dollars ($2,100.00), payable in advance on the first day of each calendar month, without demand, deduction, or setoff.",
+            "clause_type": "fees",
+            "parent": "I"
+          },
+          {
+            "number": "3",
+            "heading": "LATE CHARGES",
+            "body": "If any installment of rent is not received by Landlord on or before the fifth (5th) day of the month in which it is due, Tenant shall pay a late charge of Seventy-Five Dollars ($75.00), plus Ten Dollars ($10.00) for each additional day the rent remains unpaid. Late charges shall be deemed additional rent.",
+            "clause_type": "fees",
+            "parent": "I"
+          },
+          {
+            "number": "II",
+            "heading": "SECURITY DEPOSIT",
+            "body": "",
+            "clause_type": "deposit",
+            "parent": null
+          },
+          {
+            "number": "4",
+            "heading": "AMOUNT OF DEPOSIT",
+            "body": "Upon execution of this Lease, Tenant shall deposit with Landlord the sum of Two Thousand One Hundred Dollars ($2,100.00) as security for the faithful performance of Tenant's obligations hereunder.",
+            "clause_type": "deposit",
+            "parent": "II"
+          },
+          {
+            "number": "5",
+            "heading": "RETURN OF DEPOSIT",
+            "body": "Landlord shall return the security deposit, less any lawful deductions, within forty-five (45) days after the termination of this Lease and delivery of possession to Landlord, together with an itemized statement of any deductions taken.",
+            "clause_type": "deposit",
+            "parent": "II"
+          },
+          {
+            "number": "III",
+            "heading": "USE AND OCCUPANCY",
+            "body": "",
+            "clause_type": "other",
+            "parent": null
+          },
+          {
+            "number": "12",
+            "heading": "GUESTS",
+            "body": "Tenant may host guests upon the premises, provided that no guest shall occupy the premises for more than fourteen (14) consecutive days, nor more than thirty (30) days in any twelve (12) month period, without the prior written consent of Landlord. Any guest remaining beyond these limits shall be deemed an unauthorized occupant.",
+            "clause_type": "subletting",
+            "parent": "III"
+          },
+          {
+            "number": "14",
+            "heading": "SUBLETTING AND ASSIGNMENT",
+            "body": "Tenant shall not assign this Lease, nor sublet the premises or any portion thereof, except as expressly provided in this Section 14.",
+            "clause_type": "subletting",
+            "parent": "III"
+          },
+          {
+            "number": "14(a)",
+            "heading": "",
+            "body": "Tenant shall submit any request to sublet in writing not less than thirty (30) days prior to the proposed commencement of the sublease, together with the name, employment history, and credit report of the proposed subtenant.",
+            "clause_type": "subletting",
+            "parent": "14"
+          },
+          {
+            "number": "14(b)",
+            "heading": "",
+            "body": "Notwithstanding subsection (a), Tenant shall not sublet the premises on any short-term basis, including through any hosting platform, for any term of less than thirty (30) days. Landlord's consent shall not be required to be reasonable with respect to any such short-term arrangement, and any violation of this subsection shall constitute a material breach of this Lease.",
+            "clause_type": "subletting",
+            "parent": "14"
+          },
+          {
+            "number": "15",
+            "heading": "PETS",
+            "body": "No dog, cat, or other animal shall be kept upon the premises at any time. This prohibition shall not apply to service animals or assistance animals required by law to be accommodated.",
+            "clause_type": "pets",
+            "parent": "III"
+          },
+          {
+            "number": "IV",
+            "heading": "MAINTENANCE AND REPAIRS",
+            "body": "",
+            "clause_type": "maintenance",
+            "parent": null
+          },
+          {
+            "number": "18",
+            "heading": "TENANT OBLIGATIONS",
+            "body": "Tenant shall keep the premises in a clean and sanitary condition, shall promptly notify Landlord in writing of any needed repairs, and shall be responsible for replacement of light bulbs, smoke detector batteries, and air filters.",
+            "clause_type": "maintenance",
+            "parent": "IV"
+          },
+          {
+            "number": "19",
+            "heading": "LANDLORD OBLIGATIONS",
+            "body": "Landlord shall maintain the structural elements of the building, the plumbing, heating, and electrical systems, and all common areas in good repair. Landlord shall commence any emergency repair within twenty-four (24) hours of written notice.",
+            "clause_type": "maintenance",
+            "parent": "IV"
+          },
+          {
+            "number": "V",
+            "heading": "TERMINATION",
+            "body": "",
+            "clause_type": "termination",
+            "parent": null
+          },
+          {
+            "number": "22",
+            "heading": "EARLY TERMINATION",
+            "body": "Tenant may terminate this Lease prior to the expiration of the term upon sixty (60) days' prior written notice to Landlord and payment of a termination fee equal to two (2) months' rent. Tenant shall remain liable for all rent accruing during the notice period.",
+            "clause_type": "termination",
+            "parent": "V"
+          },
+          {
+            "number": "23",
+            "heading": "HOLDOVER",
+            "body": "Any holding over after the expiration of the term, with the consent of Landlord, shall be construed as a tenancy from month to month at a rental rate equal to one hundred fifty percent (150%) of the monthly rent then in effect.",
+            "clause_type": "termination",
+            "parent": "V"
+          }
+        ]
+      },
+      {
+        "doc_id": "maple-court-addendum-1",
+        "file": "maple-court-addendum-1.pdf",
+        "kind": "addendum",
+        "signed_date": "2024-09-15",
+        "clauses": [
+          {
+            "number": "A1",
+            "heading": "AMENDMENT TO SECURITY DEPOSIT",
+            "body": "Section 4 of the Lease is hereby amended and restated in its entirety to read as follows: Tenant shall maintain with Landlord a security deposit in the amount of Three Thousand One Hundred Fifty Dollars ($3,150.00). Tenant shall remit the additional One Thousand Fifty Dollars ($1,050.00) within thirty (30) days of the date of this Addendum.",
+            "clause_type": "deposit",
+            "parent": null
+          },
+          {
+            "number": "A2",
+            "heading": "AMENDMENT TO RETURN OF DEPOSIT",
+            "body": "Section 5 of the Lease is hereby amended to substitute twenty-one (21) days for forty-five (45) days as the period within which Landlord shall return the security deposit.",
+            "clause_type": "deposit",
+            "parent": null
+          }
+        ]
+      },
+      {
+        "doc_id": "maple-court-addendum-2",
+        "file": "maple-court-addendum-2.pdf",
+        "kind": "addendum",
+        "signed_date": "2025-01-10",
+        "clauses": [
+          {
+            "number": "B1",
+            "heading": "PET PERMISSION",
+            "body": "Notwithstanding Section 15 of the Lease, which is hereby superseded, Tenant is permitted to keep upon the premises one (1) domestic cat not exceeding fifteen (15) pounds in weight. No dog of any size shall be kept upon the premises. Tenant shall pay a one-time non-refundable pet fee of Four Hundred Dollars ($400.00) and additional monthly rent of Thirty-Five Dollars ($35.00) per month for the duration of the tenancy.",
+            "clause_type": "pets",
+            "parent": null
+          },
+          {
+            "number": "B2",
+            "heading": "PET DAMAGE",
+            "body": "Tenant shall be liable for all damage caused by the permitted animal, including damage in excess of the security deposit, and shall indemnify Landlord against any claim arising from the animal.",
+            "clause_type": "pets",
+            "parent": null
+          }
+        ]
+      }
+    ],
+    "answerable": {
+      "short_term_sublet": [
+        "14(b)"
+      ],
+      "sublet_process": [
+        "14(a)"
+      ],
+      "guest_stay_limit": [
+        "12"
+      ],
+      "late_fee": [
+        "3"
+      ],
+      "early_termination": [
+        "22"
+      ],
+      "holdover": [
+        "23"
+      ],
+      "landlord_repairs": [
+        "19"
+      ],
+      "tenant_repairs": [
+        "18"
+      ]
+    },
+    "not_covered": [
+      "who_pays_electricity",
+      "parking_space",
+      "renters_insurance_required",
+      "smoking_policy",
+      "washer_dryer_installation",
+      "rent_increase_at_renewal",
+      "mail_and_package_delivery"
+    ],
+    "overrides": {
+      "4": "A1",
+      "5": "A2",
+      "15": "B1"
+    }
+  },
+  {
+    "lease_id": "birch-lane",
+    "strategy": "clause_tree",
+    "documents": [
+      {
+        "doc_id": "birch-lane-lease",
+        "file": "birch-lane-lease.pdf",
+        "kind": "original",
+        "signed_date": "2025-02-01",
+        "clauses": [
+          {
+            "number": "1",
+            "heading": "RENT AND CHARGES",
+            "body": "Resident shall pay monthly rent of One Thousand Eight Hundred Dollars ($1,800.00) due on the first day of each month.",
+            "clause_type": "fees",
+            "parent": null
+          },
+          {
+            "number": "1.1",
+            "heading": "",
+            "body": "Rent not received within three (3) days of the due date shall incur a late fee equal to five percent (5%) of the monthly rent.",
+            "clause_type": "fees",
+            "parent": "1"
+          },
+          {
+            "number": "1.2",
+            "heading": "",
+            "body": "Any check returned for insufficient funds shall incur a charge of Fifty Dollars ($50.00) in addition to any applicable late fee.",
+            "clause_type": "fees",
+            "parent": "1"
+          },
+          {
+            "number": "2",
+            "heading": "SECURITY DEPOSIT",
+            "body": "Resident shall pay a security deposit of One Thousand Eight Hundred Dollars ($1,800.00) prior to occupancy, to be held in an interest-bearing account as required by law.",
+            "clause_type": "deposit",
+            "parent": null
+          },
+          {
+            "number": "2.1",
+            "heading": "",
+            "body": "The deposit shall be returned within thirty (30) days of move-out, less deductions for damage beyond ordinary wear and tear, unpaid rent, and cleaning costs necessary to restore the apartment to move-in condition.",
+            "clause_type": "deposit",
+            "parent": "2"
+          },
+          {
+            "number": "2.1.1",
+            "heading": "",
+            "body": "Resident may request a pre-move-out inspection not more than fourteen (14) days before vacating, at which Landlord shall identify any deficiency Resident may cure to avoid deduction.",
+            "clause_type": "deposit",
+            "parent": "2.1"
+          },
+          {
+            "number": "6",
+            "heading": "UTILITIES",
+            "body": "Resident shall be responsible for electricity, gas, and internet service. Landlord shall pay for water, sewer, and trash collection.",
+            "clause_type": "fees",
+            "parent": null
+          },
+          {
+            "number": "8",
+            "heading": "QUIET ENJOYMENT",
+            "body": "Resident shall not create or permit any noise audible outside the apartment between the hours of 10:00 p.m. and 8:00 a.m. Repeated violations shall constitute grounds for termination.",
+            "clause_type": "other",
+            "parent": null
+          },
+          {
+            "number": "9",
+            "heading": "PETS",
+            "body": "Dogs and cats are permitted with prior written approval, subject to a refundable pet deposit of Three Hundred Dollars ($300.00) per animal and a limit of two (2) animals per apartment. Aggressive breeds, as designated by Landlord's insurer, are prohibited.",
+            "clause_type": "pets",
+            "parent": null
+          },
+          {
+            "number": "11",
+            "heading": "SUBLETTING",
+            "body": "Resident shall not sublet the apartment or assign this Lease without Landlord's prior written consent, which shall not be unreasonably withheld.",
+            "clause_type": "subletting",
+            "parent": null
+          },
+          {
+            "number": "14",
+            "heading": "TERMINATION AND NOTICE",
+            "body": "Either party may terminate this Lease at the end of the term by giving not less than sixty (60) days' written notice. Early termination by Resident requires payment of a fee equal to one and one-half (1.5) months' rent.",
+            "clause_type": "termination",
+            "parent": null
+          }
+        ]
+      }
+    ],
+    "answerable": {
+      "deposit_return_window": [
+        "2.1"
+      ],
+      "pre_move_out_inspection": [
+        "2.1.1"
+      ],
+      "who_pays_electricity": [
+        "6"
+      ],
+      "late_fee": [
+        "1.1"
+      ],
+      "returned_check_fee": [
+        "1.2"
+      ],
+      "pets_allowed": [
+        "9"
+      ],
+      "quiet_hours": [
+        "8"
+      ],
+      "early_termination": [
+        "14"
+      ]
+    },
+    "not_covered": [
+      "parking_space",
+      "guest_stay_limit",
+      "renters_insurance_required",
+      "smoking_policy"
+    ],
+    "overrides": {}
+  },
+  {
+    "lease_id": "messy-loft",
+    "strategy": "fallback",
+    "documents": [
+      {
+        "doc_id": "messy-loft-agreement",
+        "file": "messy-loft-agreement.pdf",
+        "kind": "original",
+        "signed_date": "2025-03-20",
+        "clauses": []
+      }
+    ],
+    "answerable": {},
+    "not_covered": [
+      "parking_space",
+      "renters_insurance_required"
+    ],
+    "overrides": {}
+  }
+]
