@@ -71,8 +71,10 @@ def segment(doc: ParsedDocument) -> SegmentationResult:
     current_article: str | None = None
     current_numbered: str | None = None  # nearest "14."-style clause, for bare "(b)" items
 
+    document_end = _content_end(doc.full_text)
+
     for i, marker in enumerate(markers):
-        end = markers[i + 1].line_start if i + 1 < len(markers) else len(doc.full_text)
+        end = markers[i + 1].line_start if i + 1 < len(markers) else document_end
         number, parent = _resolve(marker, by_number, current_article, current_numbered)
 
         heading, body_offset = _split_heading(marker, doc.full_text, end)
@@ -97,6 +99,27 @@ def segment(doc: ParsedDocument) -> SegmentationResult:
 
     confidence = _confidence(doc.full_text, clauses)
     return SegmentationResult(clauses=clauses, confidence=confidence, strategy="clause_tree")
+
+
+# Signature and execution blocks sit after the last clause with no marker of
+# their own, so the final clause's span would otherwise absorb them — and that
+# text then gets embedded, retrieved, and quoted back to the tenant as if it
+# were part of the clause.
+_BOILERPLATE = re.compile(
+    r"^\s*(?:executed\s+on\b|in\s+witness\s+whereof\b|landlord\s*_|tenant\s*_"
+    r"|signature\b|date[d]?\s*:?\s*_)",
+    re.IGNORECASE,
+)
+
+
+def _content_end(full_text: str) -> int:
+    """Offset where the document's substantive text stops."""
+    offset = 0
+    for line in full_text.splitlines(keepends=True):
+        if _BOILERPLATE.match(line):
+            return offset
+        offset += len(line)
+    return len(full_text)
 
 
 def _find_markers(full_text: str) -> list[_Marker]:

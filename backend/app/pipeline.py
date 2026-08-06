@@ -1,0 +1,101 @@
+"""The /ask path, end to end, with a trace row per request.
+
+    retrieve → draft → gate → persist trace → respond
+
+The trace is written on every request, including the ones that go fine. That's
+the point: "it said something weird about my deposit" isn't a bug report, but a
+row containing the question, the clauses retrieved and their scores, the answer
+before the gate saw it, and the per-claim verdicts is one you can actually run
+down. It costs one insert.
+
+The eval harness calls ``answer_question`` directly rather than over HTTP, so
+what the suite measures is the same code path the API serves.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import get_settings
+from app.db.models import Trace
+from app.providers.embeddings import get_embedder
+from app.retrieval.search import Retrieved, search
+from app.synthesis import grounding
+from app.synthesis.answer import Draft, draft_answer
+
+
+@dataclass
+class AskResult:
+    question: str
+    lease_id: str
+    answer: Draft
+    retrieved: list[Retrieved] = field(default_factory=list)
+    verdicts: list[grounding.Verdict] = field(default_factory=list)
+    downgraded: bool = False
+    downgrade_reason: str = ""
+    latency_ms: int = 0
+    trace_id: str | None = None
+
+    @property
+    def is_covered(self) -> bool:
+        return self.answer.is_covered
+
+
+async def answer_question(
+    session: AsyncSession,
+    *,
+    lease_id: str,
+    question: str,
+    clause_type: str | None = None,
+    persist_trace: bool = True,
+) -> AskResult:
+    started = time.perf_counter()
+
+    found = await search(session, lease_id=lease_id, query=question, clause_type=clause_type)
+    draft = await draft_answer(question, found.results)
+    checked = await grounding.gate(draft, found.results)
+
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    result = AskResult(
+        question=question,
+        lease_id=lease_id,
+        answer=checked.answer,
+        retrieved=found.results,
+        verdicts=checked.verdicts,
+        downgraded=checked.downgraded,
+        downgrade_reason=checked.downgrade_reason,
+        latency_ms=latency_ms,
+    )
+
+    if persist_trace:
+        result.trace_id = str(await write_trace(session, result, draft))
+    return result
+
+
+async def write_trace(session: AsyncSession, result: AskResult, draft: Draft):
+    settings = get_settings()
+    trace = Trace(
+        lease_id=result.lease_id,
+        question=result.question,
+        retrieved=[r.to_trace() for r in result.retrieved],
+        draft=draft.to_trace(),  # pre-gate, so a downgrade can be diagnosed
+        gate_verdicts=[v.to_trace() for v in result.verdicts],
+        final_answer={
+            **result.answer.to_trace(),
+            "downgraded": result.downgraded,
+            "downgrade_reason": result.downgrade_reason,
+        },
+        latency_ms=result.latency_ms,
+        model_versions={
+            "llm_provider": settings.resolved_llm_provider(),
+            "smart": settings.model_for("smart"),
+            "cheap": settings.model_for("cheap"),
+            "embedding": get_embedder().name,
+        },
+    )
+    session.add(trace)
+    await session.commit()
+    return trace.id
