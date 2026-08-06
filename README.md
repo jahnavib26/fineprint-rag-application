@@ -20,33 +20,66 @@ clause 14(b) says they can't. Everything here is designed backwards from that fa
 
 ## Status
 
+All six milestones are built and running end to end.
+
 | Milestone | State |
 |---|---|
-| **M1 — ingestion core** (PDF → clause tree → fallback chunker) | ✅ done, tests green |
-| M2 — Postgres/pgvector storage + retrieval | in progress |
-| M3 — synthesis + grounding gate + traces | pending |
-| ME — eval suite | pending |
-| M4 — frontend (chat + highlighted document pane) | pending |
-| M5 — amendment graph | pending |
+| M1 — ingestion core (PDF → clause tree → fallback chunker) | ✅ |
+| M2 — Postgres/pgvector storage + retrieval | ✅ |
+| M3 — synthesis + grounding gate + traces | ✅ |
+| ME — eval suite (35 cases) | ✅ |
+| M4 — frontend (chat + highlighted document pane) | ✅ |
+| M5 — amendment graph | ✅ |
 
-## Quick start (M1)
-
-```bash
-cd backend
-python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-```
-
-Regenerate the synthetic leases and their ground truth:
+## Quick start
 
 ```bash
-backend/.venv/bin/python scripts/generate_leases.py
+docker compose up -d
 ```
-
-Run the tests:
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q
+cd backend && python3 -m venv .venv && .venv/bin/pip install -e '.[dev,all-providers]' && .venv/bin/alembic upgrade head
 ```
+
+Generate the synthetic leases, ingest them, and check retrieval:
+
+```bash
+cd backend && .venv/bin/python ../scripts/generate_leases.py && .venv/bin/python scripts/smoke_retrieval.py --reset
+```
+
+Run the backend (8001, because 8000 is a crowded default) and the frontend:
+
+```bash
+cd backend && .venv/bin/python -m uvicorn app.main:app --port 8001
+```
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Then open http://localhost:5173. Tests and evals:
+
+```bash
+cd backend && .venv/bin/python -m pytest -q && .venv/bin/python ../evals/run_evals.py
+```
+
+## Providers
+
+Three LLM providers and three embedding providers, chosen independently —
+Anthropic has no embeddings endpoint, so they're separate decisions. The
+provider is auto-selected from whichever key is present in `.env`, or pinned
+with `LLM_PROVIDER` / `EMBEDDING_PROVIDER`.
+
+| | options |
+|---|---|
+| LLM (classification, synthesis, gate, override detection) | Claude · GPT · Gemini |
+| Embeddings | Voyage · OpenAI · Gemini |
+
+**With no keys at all, everything still runs** on deterministic offline
+providers — a hashed lexical embedder and a keyword classifier. That's what
+lets the eval suite gate a pipeline change in CI without spending money or
+sending a lease to a third party. It also bounds what those runs can measure:
+see `evals/README.md`.
 
 ## Layout
 

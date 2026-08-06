@@ -22,3 +22,6 @@ evals/reports/
 
 # OS
 .DS_Store
+
+# Frontend build output
+frontend/dist/
