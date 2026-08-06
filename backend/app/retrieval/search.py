@@ -115,38 +115,64 @@ async def apply_overrides(session: AsyncSession, hits: list[Retrieved]) -> list[
     if not hits:
         return hits
 
-    edges = (
-        await session.execute(
-            select(Amendment)
-            .where(Amendment.clause_id.in_([h.clause.id for h in hits]))
-            .options(selectinload(Amendment.superseded_by))
-        )
-    ).scalars()
-    by_clause = {edge.clause_id: edge for edge in edges}
-    if not by_clause:
-        return hits
-
     out: list[Retrieved] = []
     seen: set = set()
     for hit in hits:
-        edge = by_clause.get(hit.clause.id)
-        if edge is None:
-            if hit.clause.id not in seen:
-                seen.add(hit.clause.id)
-                out.append(hit)
+        governing, original, reason = await _follow_chain(session, hit.clause)
+        if governing.id in seen:
+            # The amendment was already pulled in by another hit — or was
+            # itself retrieved directly, which is common: it's about the same
+            # topic, so it usually ranks too.
             continue
-        # Keep the amending clause's identity but the original's relevance score:
-        # the question matched the original, and the amendment inherits that.
-        replacement = edge.superseded_by
-        if replacement.id in seen:
-            continue
-        seen.add(replacement.id)
-        out.append(
-            Retrieved(
-                clause=replacement,
-                score=hit.score,
-                supersedes=hit.clause,
-                superseded_reason=edge.detected_reason,
+        seen.add(governing.id)
+        if original is None:
+            out.append(hit)
+        else:
+            # Keep the amending clause's identity but the original's relevance
+            # score: the question matched the original, and the clause that
+            # replaced it inherits that relevance.
+            out.append(
+                Retrieved(
+                    clause=governing,
+                    score=hit.score,
+                    supersedes=original,
+                    superseded_reason=reason,
+                )
             )
-        )
     return out
+
+
+# An addendum can amend an earlier addendum, so the walk follows the chain to
+# whatever governs now. Bounded because a cycle in the graph (a detector
+# hallucinating a mutual override) would otherwise hang the request.
+MAX_OVERRIDE_DEPTH = 8
+
+
+async def _follow_chain(
+    session: AsyncSession, clause: Clause
+) -> tuple[Clause, Clause | None, str]:
+    """Return (governing clause, the clause it replaced or None, reason)."""
+    original: Clause | None = None
+    reason = ""
+    current = clause
+    visited = {clause.id}
+
+    for _ in range(MAX_OVERRIDE_DEPTH):
+        edge = (
+            await session.execute(
+                select(Amendment)
+                .where(Amendment.clause_id == current.id)
+                .options(selectinload(Amendment.superseded_by))
+                .order_by(Amendment.effective_date.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if edge is None or edge.superseded_by.id in visited:
+            break
+        if original is None:
+            original = clause  # report what the *question* actually matched
+            reason = edge.detected_reason
+        current = edge.superseded_by
+        visited.add(current.id)
+
+    return current, original, reason

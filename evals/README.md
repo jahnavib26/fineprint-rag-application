@@ -44,17 +44,41 @@ amount of prompt work will help.
 scores 100%. It's only meaningful against `false_refusal_rate`, which is what
 tightening the gate costs.
 
+## The amendment graph, before and after
+
+Same cases, same providers, same everything — the only change is that M5
+populates the `amendments` table and retrieval walks it.
+
+| metric | before M5 | after M5 |
+|---|---|---|
+| **override correctness** | **40%** | **100%** |
+| citation correctness | 45% | 59% |
+| retrieval recall | 91% | 91% |
+| false refusal rate | 6% | 6% |
+| passed | 12/35 | 15/35 |
+
+The 40% before is the interesting number, not the 100% after. Two of the five
+override cases passed with no amendment graph at all, purely because the
+amending clause happened to outrank the clause it superseded. Retrieval was
+right by accident, and a suite that only checked the final answer would have
+reported those as working — which is why the override cases assert
+`must_not_cite`, and why the trace keeps both clauses.
+
+No regression in the other metrics is the other half of the claim: the graph
+didn't buy override correctness by making the system refuse more or retrieve
+worse.
+
 ## Baseline: offline providers (no API keys)
 
 | metric | value |
 |---|---|
-| passed | 12/35 |
+| passed | 15/35 |
 | retrieval recall | 91% |
-| citation correctness | 45% |
+| citation correctness | 59% |
 | grounding pass rate | 100% |
 | correct refusal rate | 15% |
 | false refusal rate | 6% |
-| override correctness | 40% |
+| override correctness | 100% |
 
 Read this as a diagnosis, not a score. **Retrieval recall of 91% is the real
 result** — clause-aware chunking finds the right clause almost every time,
@@ -66,11 +90,6 @@ whatever ranked first, so it can't refuse; the lexical gate passes verbatim
 quotes trivially, so it can't catch a topically-wrong answer. Hence 15% correct
 refusal and a grounding pass rate of 100% that means nothing. Those two numbers
 measure the placeholders, not the design.
-
-The 40% override correctness is worth reading closely: two of the five pass
-without an amendment graph, because the amending clause happened to rank first.
-That is the "lucky retrieval" the trace format exists to expose — and the reason
-these cases check `must_not_cite` rather than just checking the answer text.
 
 Re-run with a real provider key in `.env` to get numbers that measure the
 pipeline instead of its fallbacks.

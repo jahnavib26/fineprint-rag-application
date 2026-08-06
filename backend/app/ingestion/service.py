@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Clause, Document, Embedding
 from app.ingestion import classifier, pipeline
+from app.ingestion.amendments import detect_amendments
 from app.providers.embeddings import get_embedder
 
 
@@ -83,6 +84,13 @@ async def ingest_document(
     )
 
     await session.commit()
+
+    if kind == "addendum":
+        # Rebuild the whole lease's override graph rather than just this
+        # document's edges: an addendum can amend an earlier addendum, and the
+        # ordering only resolves with every document present.
+        await detect_amendments(session, lease_id)
+
     return document
 
 
