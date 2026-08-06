@@ -62,7 +62,9 @@ def segment(doc: ParsedDocument) -> SegmentationResult:
     # A two-clause addendum is a legitimate document; a lone marker in a wall of
     # prose is noise. Two is the smallest count that can describe a structure.
     if len(markers) < MIN_MARKERS:
-        return SegmentationResult(clauses=[], confidence=_low_confidence(markers), strategy="clause_tree")
+        return SegmentationResult(
+            clauses=[], confidence=_low_confidence(markers), strategy="clause_tree"
+        )
 
     clauses: list[Clause] = []
     by_number: dict[str, Clause] = {}

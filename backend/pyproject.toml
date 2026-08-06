@@ -12,13 +12,23 @@ dependencies = [
     "pgvector>=0.3",
     "pydantic-settings>=2.4",
     "pymupdf>=1.24",
-    "anthropic>=0.40",
-    "voyageai>=0.3",
     "python-multipart>=0.0.9",
     "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
+# Providers are optional extras: install only the vendors you actually use.
+# With none installed, FinePrint runs on the offline providers.
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.50"]
+gemini = ["google-genai>=1.0"]
+voyage = ["voyageai>=0.3"]
+all-providers = [
+    "anthropic>=0.40",
+    "openai>=1.50",
+    "google-genai>=1.0",
+    "voyageai>=0.3",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
