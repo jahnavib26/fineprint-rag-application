@@ -1,0 +1,130 @@
+# Questions the lease genuinely answers. Ground truth comes from
+# scripts/lease_content.py, which also generates the PDFs, so the expected
+# citations are exact rather than hand-labelled.
+#
+# `must_cite` is the clause a correct answer has to cite. A right-sounding
+# answer citing the wrong clause is a failure here, because a tenant clicking
+# the citation would land somewhere that doesn't say what the answer claimed.
+
+- id: maple-sublet-shortterm
+  lease_id: maple-court
+  question: Can I list my apartment on Airbnb for a weekend?
+  expect: answered
+  must_cite: ["14(b)"]
+  category: subletting
+  note: >-
+    The clause never says "Airbnb" — it says "any hosting platform" and
+    "less than thirty (30) days". Pure vocabulary overlap cannot find this.
+
+- id: maple-sublet-process
+  lease_id: maple-court
+  question: What do I have to do if I want to sublet my place to someone for six months?
+  expect: answered
+  must_cite: ["14(a)"]
+  category: subletting
+
+- id: maple-guest-limit
+  lease_id: maple-court
+  question: How long can my boyfriend stay over before it's a problem?
+  expect: answered
+  must_cite: ["12"]
+  category: subletting
+
+- id: maple-late-fee
+  lease_id: maple-court
+  question: What happens if I pay my rent a week late?
+  expect: answered
+  must_cite: ["3"]
+  category: fees
+
+- id: maple-early-termination
+  lease_id: maple-court
+  question: I need to move out early. What does that cost me?
+  expect: answered
+  must_cite: ["22"]
+  category: termination
+
+- id: maple-holdover
+  lease_id: maple-court
+  question: What if I stay past the end of my lease?
+  expect: answered
+  must_cite: ["23"]
+  category: termination
+
+- id: maple-landlord-repairs
+  lease_id: maple-court
+  question: My heat stopped working. How fast does my landlord have to fix it?
+  expect: answered
+  must_cite: ["19"]
+  category: maintenance
+
+- id: maple-tenant-repairs
+  lease_id: maple-court
+  question: Am I responsible for replacing the smoke detector batteries?
+  expect: answered
+  must_cite: ["18"]
+  category: maintenance
+
+- id: maple-rent-amount
+  lease_id: maple-court
+  question: How much is my rent and when is it due?
+  expect: answered
+  must_cite: ["2"]
+  category: fees
+
+- id: birch-deposit-return
+  lease_id: birch-lane
+  question: How long does my landlord have to return my deposit after I move out?
+  expect: answered
+  must_cite: ["2.1"]
+  category: deposit
+
+- id: birch-preinspection
+  lease_id: birch-lane
+  question: Can I get the place inspected before I move out so I know what to fix?
+  expect: answered
+  must_cite: ["2.1.1"]
+  category: deposit
+  note: Deepest node in the tree — 2.1.1 under 2.1 under 2.
+
+- id: birch-utilities
+  lease_id: birch-lane
+  question: Who pays for the water bill?
+  expect: answered
+  must_cite: ["6"]
+  category: fees
+
+- id: birch-late-fee
+  lease_id: birch-lane
+  question: Is there a grace period on rent?
+  expect: answered
+  must_cite: ["1.1"]
+  category: fees
+
+- id: birch-nsf
+  lease_id: birch-lane
+  question: What if my rent check bounces?
+  expect: answered
+  must_cite: ["1.2"]
+  category: fees
+
+- id: birch-pets
+  lease_id: birch-lane
+  question: Can I bring my two dogs?
+  expect: answered
+  must_cite: ["9"]
+  category: pets
+
+- id: birch-quiet-hours
+  lease_id: birch-lane
+  question: My neighbor practices drums at midnight. Does the lease say anything?
+  expect: answered
+  must_cite: ["8"]
+  category: other
+
+- id: birch-early-termination
+  lease_id: birch-lane
+  question: What's the penalty for breaking my lease early?
+  expect: answered
+  must_cite: ["14"]
+  category: termination

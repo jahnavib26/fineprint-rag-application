@@ -1,0 +1,106 @@
+# Questions this lease is genuinely silent on. The correct answer is a refusal;
+# answering anyway is the failure being measured.
+#
+# These are the most valuable cases in the suite. They're also the ones a naive
+# RAG demo always passes by accident and a real one fails, because retrieval
+# always returns *something* — the top clause for "do I need renters insurance"
+# is a confident, well-scored, completely irrelevant clause, and a model handed
+# it will write a plausible answer about it.
+#
+# Several are deliberately adjacent to a topic the lease does cover, so passing
+# requires distinguishing "related" from "answers the question":
+#   - maple has pet clauses but says nothing about pet *insurance*
+#   - maple covers subletting but says nothing about roommates on the lease
+#   - birch covers utilities but says nothing about internet *provider* choice
+
+- id: maple-electricity
+  lease_id: maple-court
+  question: Does my landlord pay my electric bill?
+  expect: not_covered
+  category: fees
+  note: >-
+    Maple is silent on utilities entirely. Birch answers this in clause 6, so
+    a model leaning on general lease knowledge rather than these clauses fails.
+
+- id: maple-parking
+  lease_id: maple-court
+  question: Do I get a parking space with the apartment?
+  expect: not_covered
+  category: other
+
+- id: maple-renters-insurance
+  lease_id: maple-court
+  question: Am I required to carry renters insurance?
+  expect: not_covered
+  category: other
+
+- id: maple-smoking
+  lease_id: maple-court
+  question: Can I smoke on the balcony?
+  expect: not_covered
+  category: other
+
+- id: maple-washer-dryer
+  lease_id: maple-court
+  question: Can I install a washer and dryer in the unit?
+  expect: not_covered
+  category: maintenance
+
+- id: maple-rent-increase
+  lease_id: maple-court
+  question: How much can my landlord raise the rent when I renew?
+  expect: not_covered
+  category: fees
+  note: Adjacent to clause 2 (rent amount), which sets rent but never renewal.
+
+- id: maple-packages
+  lease_id: maple-court
+  question: Where do my packages get delivered?
+  expect: not_covered
+  category: other
+
+- id: maple-roommate
+  lease_id: maple-court
+  question: How do I add my partner to the lease as a co-tenant?
+  expect: not_covered
+  category: subletting
+  note: >-
+    Adjacent to 12 (guests) and 14 (subletting/assignment). Neither describes
+    adding a co-tenant, so citing either is a wrong answer with a real citation.
+
+- id: maple-pet-insurance
+  lease_id: maple-court
+  question: Do I need liability insurance for my pet?
+  expect: not_covered
+  category: pets
+  note: >-
+    Addendum B2 makes the tenant liable for pet damage but never requires
+    insurance. The nearest clause is topically perfect and factually silent.
+
+- id: birch-parking
+  lease_id: birch-lane
+  question: Is there assigned parking?
+  expect: not_covered
+  category: other
+
+- id: birch-guests
+  lease_id: birch-lane
+  question: How long can a guest stay with me?
+  expect: not_covered
+  category: subletting
+  note: >-
+    Maple limits guests in clause 12; birch is silent. Cross-lease contamination
+    would show up here.
+
+- id: birch-renters-insurance
+  lease_id: birch-lane
+  question: Do I have to get renters insurance?
+  expect: not_covered
+  category: other
+
+- id: birch-internet-provider
+  lease_id: birch-lane
+  question: Can I choose my own internet provider?
+  expect: not_covered
+  category: fees
+  note: Clause 6 says the resident pays for internet, never who provides it.

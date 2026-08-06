@@ -1,0 +1,75 @@
+# The adversarial cases: an addendum changed the answer.
+#
+# Every one of these has a correct-looking wrong answer available. The original
+# clause is still in the lease, still retrievable, still the best semantic match
+# for the question — and now wrong. Citing it produces an answer that is fluent,
+# properly cited, traceable to real text, and would cost a tenant money.
+#
+# `must_not_cite` is what makes these adversarial: passing requires citing the
+# amending clause AND not citing the superseded one. An eval that only checked
+# `must_cite` would pass an answer that hedged by citing both, which in practice
+# means telling the tenant their deposit is either $2,100 or $3,150.
+#
+# These are expected to FAIL until M5 populates the amendments graph. That
+# failure is the point — it's the regression fixture that proves M5 works, and
+# the before/after on override_correctness is the headline number.
+
+- id: maple-deposit-amount-amended
+  lease_id: maple-court
+  question: How much is my security deposit?
+  expect: answered
+  must_cite: ["A1"]
+  must_not_cite: ["4"]
+  category: deposit
+  override: true
+  note: >-
+    Clause 4 says $2,100. Addendum A1 raised it to $3,150. Clause 4 is the
+    better lexical and semantic match for the question, so retrieval finds the
+    wrong answer first by design.
+
+- id: maple-deposit-return-window-amended
+  lease_id: maple-court
+  question: How many days does my landlord have to return my deposit?
+  expect: answered
+  must_cite: ["A2"]
+  must_not_cite: ["5"]
+  category: deposit
+  override: true
+  note: 45 days in clause 5, amended to 21 days by A2.
+
+- id: maple-pets-amended
+  lease_id: maple-court
+  question: Can I have a cat?
+  expect: answered
+  must_cite: ["B1"]
+  must_not_cite: ["15"]
+  category: pets
+  override: true
+  note: >-
+    Clause 15 bans all animals. Addendum B1 supersedes it and permits one cat
+    under 15 lbs. The original answers the question cleanly and wrongly.
+
+- id: maple-dog-still-banned
+  lease_id: maple-court
+  question: Can I get a dog?
+  expect: answered
+  must_cite: ["B1"]
+  category: pets
+  override: true
+  note: >-
+    The inverse case. B1 supersedes clause 15 but still bans dogs, so the
+    answer is unchanged while the governing clause is not. A system that
+    swaps in the amendment blindly and one that ignores amendments entirely
+    both produce "no" here — only the citation reveals which.
+
+- id: maple-pet-fee-amended
+  lease_id: maple-court
+  question: Do I have to pay anything extra to keep a pet?
+  expect: answered
+  must_cite: ["B1"]
+  category: pets
+  override: true
+  note: >-
+    Only the addendum mentions the $400 fee and $35/month. The original lease
+    has no pet fee because it allowed no pets — so a system reading only the
+    original would refuse, which is a false refusal, not a correct one.
