@@ -18,6 +18,111 @@ clause 14(b) says they can't. Everything here is designed backwards from that fa
 | **Replayable traces** | One row per request: question, retrieved clauses + scores, pre-gate draft, per-claim verdicts, final answer. "It said something weird about my deposit" is a bug report you can actually run. |
 | **Refusal evals** | The most valuable cases are the ones whose correct answer is "the lease doesn't say" — plus adversarial cases where an addendum changed the answer and citing the original clause is a wrong answer with a right-looking citation. |
 
+## How a question gets answered
+
+Two things here don't appear in a standard RAG diagram, and both exist because
+of the failure mode above. **The override walk runs after vector search, not
+inside it** — search will always rank the original clause highest, because it's
+longer, more topical, and written in the vocabulary the question uses; the walk
+then swaps in whatever superseded it and keeps both. **The gate is a separate
+pass over the drafted answer**, not an instruction in the drafting prompt:
+asking a model to check a specific claim against a specific clause is a far
+more reliable operation than asking it not to overreach in the first place.
+
+```mermaid
+flowchart TD
+    Q["Tenant's question"] --> E["Embed query"]
+    E --> S["Vector search over clauses<br/>filtered by clause type"]
+    S --> F{"Anything above the<br/>relevance floor?"}
+    F -->|"nothing relevant"| R["<b>Your lease doesn't<br/>address this</b>"]
+    F -->|"candidates"| O["Walk amendment edges:<br/>swap superseded clauses,<br/>keep both"]
+    O --> D["Draft answer, citing<br/>clause numbers inline"]
+    D --> C["Decompose into atomic claims"]
+    C --> G{"Is every load-bearing claim<br/>supported by the clause it cites?"}
+    G -->|"no"| R
+    G -->|"yes"| A["<b>Answer with citations</b><br/>click to highlight in the lease"]
+    A --> T[("trace row")]
+    R --> T
+
+    style R fill:#fbf0e2,stroke:#9a5b1f
+    style A fill:#eef3ee,stroke:#2f6b4f
+    style G stroke-width:2px
+```
+
+Note that both paths end at the same place. A refusal is an outcome the system
+is designed to produce, not an error it falls into — which is why it's stored,
+measured, and given its own UI component.
+
+## How a lease gets ingested
+
+```mermaid
+flowchart LR
+    PDF["Lease PDF"] --> X["Extract text<br/>+ per-page char offsets"]
+    X --> SEG{"Enough clause<br/>markers found?"}
+    SEG -->|"yes"| TREE["Clause tree<br/>ARTICLE VII · 14 → 14(b) · 2.1.1"]
+    SEG -->|"no"| CHUNK["Overlap chunker<br/>flagged low-structure"]
+    TREE --> CL["Tag clause type<br/>deposit · pets · subletting …"]
+    CHUNK --> CL
+    CL --> EM["Embed number + heading + text"]
+    EM --> DB[("Postgres + pgvector")]
+    ADD["Addendum PDF"] --> X
+    DB --> AMD["Read addenda for<br/>override language"]
+    AMD --> EDGE[("amendment edges")]
+
+    style TREE fill:#f2e9df,stroke:#7a5c3e
+    style EDGE fill:#fbf0e2,stroke:#9a5b1f
+```
+
+The character offsets are load-bearing rather than incidental: they're what
+lets a citation click scroll to and highlight the exact paragraph, and they're
+why the extracted text is stored alongside the clauses and rendered in the UI
+instead of a PDF canvas. No coordinate mapping to get wrong.
+
+## Data model
+
+```mermaid
+erDiagram
+    documents ||--o{ clauses : "contains"
+    clauses ||--o| embeddings : "has"
+    clauses ||--o{ amendments : "is superseded by"
+    clauses ||--o{ clauses : "parent of"
+
+    documents {
+        uuid id PK
+        string lease_id "groups a lease with its addenda"
+        string kind "original | addendum"
+        date signed_date "decides which wins"
+        float structure_confidence
+        text full_text "what the UI renders"
+    }
+    clauses {
+        uuid id PK
+        string number "14(b)"
+        uuid parent_id FK "14"
+        string clause_type "the metadata filter"
+        int char_start "drives highlighting"
+        int char_end
+    }
+    amendments {
+        uuid clause_id FK "the original"
+        uuid superseded_by_clause_id FK "what governs now"
+        string action "amends | replaces"
+        text detected_reason
+    }
+    traces {
+        text question
+        jsonb retrieved "ids + scores"
+        jsonb draft "pre-gate"
+        jsonb gate_verdicts "per claim"
+        jsonb final_answer
+    }
+```
+
+`amendments` is an edge table rather than a mutation of the original clause on
+purpose. Rewriting clause 15 in place would make the amendment invisible, and
+"originally no pets, amended to one cat under 15 lb" is usually the thing the
+tenant most needs to see.
+
 ## Status
 
 All six milestones are built and running end to end.

@@ -5,6 +5,29 @@ with node, then runs it and the API from a single Python process on one origin.
 That removes CORS and API-base-URL configuration entirely, and means any host
 that can run a container and hand it a `$PORT` can run this.
 
+```mermaid
+flowchart LR
+    B["Browser"] -->|HTTPS| H["Host's TLS + router<br/>Render · Fly · Railway"]
+    H -->|"$PORT"| C
+
+    subgraph C["One container"]
+      direction TB
+      GATE["HTTP Basic gate<br/>APP_PASSWORD"]
+      GATE --> UI["Built React UI<br/>/assets + SPA fallback"]
+      GATE --> API["FastAPI<br/>/api/*"]
+    end
+
+    C -->|"asyncpg over TLS"| P[("Managed Postgres<br/>+ pgvector")]
+    API -.->|"optional key"| L["LLM provider<br/>Claude · GPT · Gemini"]
+    API -.->|"optional key"| E["Embedding provider<br/>Voyage · OpenAI · Gemini"]
+
+    style GATE fill:#fbf0e2,stroke:#9a5b1f
+    style C fill:#faf9f7,stroke:#7a5c3e
+```
+
+The dotted edges are the ones that can be absent: with no provider keys the app
+still boots and serves, on offline providers. The solid edges are required.
+
 The only external dependency is **Postgres with pgvector**. Migration `0001`
 runs `CREATE EXTENSION IF NOT EXISTS vector` itself, so a managed Postgres that
 *offers* pgvector needs no manual setup — Render, Neon, Supabase, and RDS all

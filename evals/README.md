@@ -33,6 +33,33 @@ clause **and not** the superseded one — otherwise an answer that hedges by
 citing both would pass, which in practice means telling a tenant their deposit
 is either $2,100 or $3,150.
 
+## Why the override cases are adversarial
+
+The five override cases are the only ones where a *correct-looking* citation is
+a failure. The lease says one thing, an addendum signed months later says
+another, and the tenant asks the question in the original's vocabulary — so
+retrieval's best match is exactly the clause that no longer governs.
+
+```mermaid
+flowchart TD
+    Q["“Can I have a cat?”"] --> S["Vector search"]
+    S --> C15["<b>Clause 15</b> — PETS<br/>“No dog, cat, or other animal<br/>shall be kept upon the premises.”<br/><i>ranks first: topical, same words</i>"]
+    C15 --> W{"Does an amendment<br/>edge point away from 15?"}
+    W -->|"no graph — v1"| BAD["<b>“No, pets are prohibited”</b> [15]<br/>fluent · well-cited · <b>wrong</b>"]
+    W -->|"edge 15 → B1"| GOOD["<b>“One cat under 15 lb, $400 fee”</b> [B1]<br/>+ shows it amends 15"]
+
+    style C15 fill:#f2e9df,stroke:#7a5c3e
+    style BAD fill:#fbe9e9,stroke:#a33
+    style GOOD fill:#eef3ee,stroke:#2f6b4f
+```
+
+The left branch is what makes these cases worth writing. It fails in the way
+that matters most for a legal document — confidently, with a citation a tenant
+would reasonably trust — and an eval that only compared answer text against a
+keyword list would score it as a near-miss rather than a failure. So each of
+these cases carries a `must_not_cite` on the superseded clause: citing 15 here
+is wrong even if the prose happens to mention the addendum.
+
 ## Metrics
 
 `retrieval_recall` and `citation_correctness` are reported separately on
