@@ -63,6 +63,23 @@ Then open http://localhost:5173. Tests and evals:
 cd backend && .venv/bin/python -m pytest -q && .venv/bin/python ../evals/run_evals.py
 ```
 
+## Hosting
+
+The deployable artifact is one container — `Dockerfile` builds the UI and
+serves it from the same process as the API, so there's no CORS or API-URL
+configuration and any host that runs a container works. Postgres with pgvector
+is the only external dependency, and migrations run on boot.
+
+```bash
+APP_PASSWORD=demo docker compose --profile app up --build   # localhost:8080
+```
+
+`render.yaml` is a working blueprint (web service + database). **Set
+`APP_PASSWORD` before exposing a public URL** — leases are private legal
+documents and there are no user accounts, so without it anyone with the link
+can read and upload them. Full guide, including what's deliberately *not*
+production-ready: [deploy/README.md](deploy/README.md).
+
 ## Providers
 
 Three LLM providers and three embedding providers, chosen independently —

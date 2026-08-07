@@ -15,7 +15,15 @@ from app.config import get_settings
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    return create_async_engine(get_settings().database_url, pool_pre_ping=True)
+    url, connect_args = get_settings().database_connect_args()
+    return create_async_engine(
+        url,
+        # Managed Postgres and PaaS proxies drop idle connections without
+        # telling the pool, so the first query after a quiet period fails.
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args=connect_args,
+    )
 
 
 @lru_cache

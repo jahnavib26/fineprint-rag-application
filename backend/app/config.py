@@ -18,6 +18,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -70,12 +71,64 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://fineprint:fineprint@localhost:5433/fineprint"
 
+    # --- Hosting ---------------------------------------------------------
+    # Set to gate the whole app behind HTTP Basic. Unset (the default) leaves
+    # it open, which is fine on localhost and is not fine on a public URL:
+    # a lease is a private legal document, and every upload here is readable
+    # by anyone who can reach the origin.
+    app_password: str | None = None
+    app_username: str = "tenant"
+
+    # Extra browser origins allowed to call the API. Only needed when the
+    # frontend is deployed separately; the single-container deployment serves
+    # both from one origin and needs none.
+    cors_origins: str = ""
+
+    # A lease is tens of KB of text. Anything vastly larger is a mistake or an
+    # attempt to exhaust the dyno's memory during parsing.
+    max_upload_mb: int = 25
+
     top_k: int = 8
     # Below this cosine similarity a clause isn't relevant at all; if nothing
     # clears it the answer is a refusal before a model is even asked. Leave
     # unset to use the configured embedder's own floor — the right threshold is
     # a property of the embedding space, not of the application.
     min_similarity: float | None = None
+
+    def database_connect_args(self) -> tuple[str, dict]:
+        """Normalise the URL a managed Postgres hands you into one asyncpg takes.
+
+        Neon, Render, Supabase, and Heroku all emit ``postgres://…?sslmode=require``.
+        SQLAlchemy needs an explicit ``+asyncpg`` driver, and asyncpg rejects
+        ``sslmode`` outright — it spells the same thing ``ssl``. Left alone,
+        both produce startup crashes that read like configuration typos.
+        """
+        url = self.database_url
+        for prefix, replacement in (
+            ("postgres://", "postgresql+asyncpg://"),
+            ("postgresql://", "postgresql+asyncpg://"),
+        ):
+            if url.startswith(prefix):
+                url = replacement + url[len(prefix) :]
+                break
+
+        connect_args: dict = {}
+        if "sslmode=" in url:
+            parsed = urlsplit(url)
+            query = parse_qsl(parsed.query, keep_blank_values=True)
+            remaining = [(k, v) for k, v in query if k != "sslmode"]
+            sslmode = next((v for k, v in query if k == "sslmode"), "require")
+            if sslmode != "disable":
+                connect_args["ssl"] = sslmode
+            url = urlunsplit(parsed._replace(query=urlencode(remaining)))
+
+        return url, connect_args
+
+    def cors_origin_list(self) -> list[str]:
+        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        # Vite's dev server is a different origin from the API; in the deployed
+        # single-container setup they share one and this is unused.
+        return origins + ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     def resolved_llm_provider(self) -> LLMProvider:
         if self.llm_provider:

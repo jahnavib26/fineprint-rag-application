@@ -1,0 +1,41 @@
+# Render blueprint: one web service from the Dockerfile, one Postgres.
+# Deploy with: push to GitHub, then New → Blueprint and point at this repo.
+#
+# Render's Postgres ships pgvector, and migration 0001 runs
+# CREATE EXTENSION IF NOT EXISTS vector itself, so there is no manual DB setup.
+
+services:
+  - type: web
+    name: fineprint
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fineprint-db
+          property: connectionString
+      # Render emits postgres://…; config.database_connect_args() rewrites it
+      # for asyncpg, so it can be used as-is.
+
+      # Set this in the dashboard. Without it the deployment is a public URL
+      # where anyone can read and upload leases.
+      - key: APP_PASSWORD
+        sync: false
+
+      # Optional. With none set, the app runs on offline providers: it works,
+      # but retrieval is lexical and answers are extractive. See README.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+databases:
+  - name: fineprint-db
+    plan: basic-256mb
+    postgresMajorVersion: "17"

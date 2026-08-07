@@ -1,0 +1,12 @@
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+frontend/dist/
+backend/static/
+data/private/
+evals/reports/
+.git/
+.env
+*.md
