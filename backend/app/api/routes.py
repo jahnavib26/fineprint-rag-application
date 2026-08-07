@@ -22,7 +22,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.models import Clause, Document, Trace
 from app.db.session import get_session
-from app.ingestion.pdf import ScannedPdfError
+from app.ingestion.pdf import ScannedPdfError, UnreadableDocumentError
 from app.ingestion.service import ingest_document, lease_documents
 from app.pipeline import answer_question
 
@@ -139,15 +139,16 @@ async def upload_document(
             lease_id=lease_id,
             kind=kind,
             signed_date=signed_date,
+            display_name=file.filename,
         )
-    except ScannedPdfError as exc:
-        # A scan isn't a server error — it's a document we can't read yet, and
-        # the tenant needs to know which.
+    except (ScannedPdfError, UnreadableDocumentError) as exc:
+        # Neither is a server error — they're documents we can't read, and the
+        # two need different things from the user ("send me a digital copy" vs
+        # "that wasn't a PDF"), so the message rather than the status carries
+        # the distinction.
         raise HTTPException(422, str(exc)) from exc
     finally:
         tmp_path.unlink(missing_ok=True)
-
-    document.filename = file.filename or document.filename
     clauses = await document.awaitable_attrs.clauses
     return DocumentOut.of(document, len(clauses))
 

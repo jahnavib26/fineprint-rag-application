@@ -29,13 +29,17 @@ async def ingest_document(
     lease_id: str,
     kind: str = "original",
     signed_date: date | None = None,
+    display_name: str | None = None,
 ) -> Document:
-    parsed = pipeline.parse(path)
+    # Uploads arrive at a temp path; display_name carries the name the user
+    # chose, for both error messages and the stored filename.
+    name = display_name or Path(path).name
+    parsed = pipeline.parse(path, display_name=name)
     clauses = await classifier.classify(parsed.clauses)
 
     document = Document(
         lease_id=lease_id,
-        filename=Path(path).name,
+        filename=name,
         kind=kind,
         signed_date=signed_date,
         structure_confidence=parsed.segmentation.confidence,

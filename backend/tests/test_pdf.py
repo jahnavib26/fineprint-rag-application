@@ -35,4 +35,35 @@ def test_scanned_pdf_raises_a_helpful_error(tmp_path):
 
     with pytest.raises(pdf.ScannedPdfError) as exc:
         pdf.extract_text(path)
-    assert "OCR" in str(exc.value)
+    message = str(exc.value)
+    assert "scan.pdf" in message
+    # Advice a tenant can act on, not an implementation note.
+    assert "digital copy" in message
+
+
+def test_non_pdf_is_not_diagnosed_as_a_scan(tmp_path):
+    """pymupdf opens .txt files happily, and they extract almost no text — so
+    without an explicit format check a text file gets reported as a scanned
+    lease and the user is told to re-export a PDF they never had."""
+    path = tmp_path / "notalease.txt"
+    path.write_text("this is not a lease")
+
+    with pytest.raises(pdf.UnreadableDocumentError) as exc:
+        pdf.extract_text(path)
+    assert "isn't a PDF" in str(exc.value)
+    assert not isinstance(exc.value, pdf.ScannedPdfError)
+
+
+def test_errors_name_the_users_file_not_the_temp_path(tmp_path):
+    """Uploads are staged under a temp name; the message must not leak it."""
+    staged = tmp_path / "tmpXk92la.pdf"
+    c = canvas.Canvas(str(staged), pagesize=LETTER)
+    c.rect(100, 100, 200, 200, fill=0)
+    c.showPage()
+    c.save()
+
+    with pytest.raises(pdf.ScannedPdfError) as exc:
+        pdf.extract_text(staged, display_name="My Lease 2024.pdf")
+    message = str(exc.value)
+    assert "My Lease 2024.pdf" in message
+    assert "tmpXk92la" not in message

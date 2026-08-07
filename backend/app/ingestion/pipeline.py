@@ -26,8 +26,10 @@ class ParseResult:
         return self.segmentation.clauses
 
 
-def parse(path: str | Path) -> ParseResult:
-    doc = pdf.extract_text(path)
+def parse(path: str | Path, *, display_name: str | None = None) -> ParseResult:
+    # display_name is the name the user knows the file by. Uploads are staged
+    # under a temp path, which must never surface in an error message.
+    doc = pdf.extract_text(path, display_name=display_name)
     return ParseResult(document=doc, segmentation=segment_text(doc))
 
 
