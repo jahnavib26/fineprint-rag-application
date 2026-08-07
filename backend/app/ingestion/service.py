@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Clause, Document, Embedding
 from app.ingestion import classifier, pipeline
 from app.ingestion.amendments import detect_amendments
-from app.providers.embeddings import get_embedder
+from app.providers.runtime import Providers
 
 
 async def ingest_document(
@@ -27,6 +27,7 @@ async def ingest_document(
     *,
     path: str | Path,
     lease_id: str,
+    providers: Providers,
     kind: str = "original",
     signed_date: date | None = None,
     display_name: str | None = None,
@@ -34,8 +35,15 @@ async def ingest_document(
     # Uploads arrive at a temp path; display_name carries the name the user
     # chose, for both error messages and the stored filename.
     name = display_name or Path(path).name
+    embedder = providers.embedder
+    # Vectors from different embedding models aren't comparable, and cosine
+    # across two spaces fails silently — plausible scores, meaningless order.
+    # An addendum embedded differently from its lease would quietly corrupt
+    # retrieval for that whole lease, so reject it before writing anything.
+    await require_matching_embedding_space(session, lease_id, embedder.name)
+
     parsed = pipeline.parse(path, display_name=name)
-    clauses = await classifier.classify(parsed.clauses)
+    clauses = await classifier.classify(parsed.clauses, providers)
 
     document = Document(
         lease_id=lease_id,
@@ -80,7 +88,6 @@ async def ingest_document(
     # structure and citation context; they just aren't retrievable.
     retrievable = [row for row in rows if row.text.strip()]
 
-    embedder = get_embedder()
     vectors = await embedder.embed_documents([embedding_text(c) for c in retrievable])
     session.add_all(
         Embedding(clause_id=row.id, vector=vector, model=embedder.name)
@@ -93,9 +100,48 @@ async def ingest_document(
         # Rebuild the whole lease's override graph rather than just this
         # document's edges: an addendum can amend an earlier addendum, and the
         # ordering only resolves with every document present.
-        await detect_amendments(session, lease_id)
+        await detect_amendments(session, lease_id, providers)
 
     return document
+
+
+class EmbeddingSpaceMismatch(ValueError):
+    """A document was embedded with a different model than the rest of its lease."""
+
+
+async def lease_embedding_model(session: AsyncSession, lease_id: str) -> str | None:
+    """Which embedding model this lease's existing vectors were built with."""
+    return (
+        await session.execute(
+            select(Embedding.model)
+            .join(Clause, Clause.id == Embedding.clause_id)
+            .join(Document, Document.id == Clause.document_id)
+            .where(Document.lease_id == lease_id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def require_matching_embedding_space(
+    session: AsyncSession, lease_id: str, model: str
+) -> None:
+    """Refuse to add a document embedded in a different space than its lease.
+
+    This matters most in bring-your-own-key mode, where the provider is chosen
+    per request: uploading a lease with one provider and its addendum with
+    another would leave one lease holding two incompatible vector spaces.
+    Cosine between them still returns numbers, so nothing errors — retrieval
+    just silently ranks by noise. Failing the upload is the only honest option,
+    because the alternative is a system that looks like it works.
+    """
+    existing = await lease_embedding_model(session, lease_id)
+    if existing is not None and existing != model:
+        raise EmbeddingSpaceMismatch(
+            f"This lease was indexed with '{existing}', but this upload would use "
+            f"'{model}'. Vectors from different embedding models can't be compared, "
+            f"so mixing them would silently break search for this lease. Use the same "
+            f"embedding provider as the rest of the lease, or start a new lease id."
+        )
 
 
 def embedding_text(clause: Clause) -> str:

@@ -22,6 +22,7 @@ from sqlalchemy import text  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db.session import get_engine, get_sessionmaker  # noqa: E402
 from app.ingestion.service import ingest_document  # noqa: E402
+from app.providers.runtime import server_providers  # noqa: E402
 from app.retrieval.search import search  # noqa: E402
 
 SYNTHETIC = Path(__file__).resolve().parents[2] / "data" / "synthetic"
@@ -68,6 +69,7 @@ async def main() -> int:
                 session,
                 path=SYNTHETIC / filename,
                 lease_id=lease_id,
+                providers=server_providers(),
                 kind=kind,
                 signed_date=signed,
             )
@@ -78,10 +80,16 @@ async def main() -> int:
             )
 
     print()
+    providers = server_providers()
     async with sessionmaker() as session:
         for lease_id, question, clause_type in QUERIES:
             result = await search(
-                session, lease_id=lease_id, query=question, clause_type=clause_type, top_k=3
+                session,
+                lease_id=lease_id,
+                query=question,
+                providers=providers,
+                clause_type=clause_type,
+                top_k=3,
             )
             filter_note = f"  [type={clause_type}]" if clause_type else ""
             print(f"{lease_id}: {question}{filter_note}")

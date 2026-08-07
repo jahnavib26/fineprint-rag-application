@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import re
 
-from app.config import get_settings
 from app.db.models import CLAUSE_TYPES
 from app.ingestion.types import Clause
-from app.providers.llm import LLMUnavailable, get_llm, llm_available, object_schema
+from app.providers.llm import LLMUnavailable, object_schema
+from app.providers.runtime import Providers
 
 BATCH_SIZE = 20
 
@@ -64,21 +64,21 @@ _KEYWORDS: list[tuple[str, re.Pattern[str]]] = [
 ]
 
 
-async def classify(clauses: list[Clause]) -> list[Clause]:
+async def classify(clauses: list[Clause], providers: Providers) -> list[Clause]:
     """Fill in ``clause_type`` on each clause, in place, and return them."""
     if not clauses:
         return clauses
-    if llm_available():
+    if providers.llm_available:
         try:
-            return await _classify_with_llm(clauses)
+            return await _classify_with_llm(clauses, providers)
         except LLMUnavailable:
             pass
     return _classify_with_keywords(clauses)
 
 
-async def _classify_with_llm(clauses: list[Clause]) -> list[Clause]:
-    llm = get_llm()
-    model = get_settings().model_for("cheap")
+async def _classify_with_llm(clauses: list[Clause], providers: Providers) -> list[Clause]:
+    llm = providers.require_llm()
+    model = providers.model_for("cheap")
     by_number = {c.number: c for c in clauses}
 
     for batch in _batches(clauses, BATCH_SIZE):

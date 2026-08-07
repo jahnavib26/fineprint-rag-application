@@ -14,17 +14,25 @@ from datetime import date
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api import limits
+from app.api.providers import ProvidersDep, provider_catalogue
 from app.db.models import Clause, Document, Trace
 from app.db.session import get_session
 from app.ingestion.pdf import ScannedPdfError, UnreadableDocumentError
-from app.ingestion.service import ingest_document, lease_documents
+from app.ingestion.service import (
+    EmbeddingSpaceMismatch,
+    ingest_document,
+    lease_documents,
+)
 from app.pipeline import answer_question
+from app.providers.llm import ProviderCallError
+from app.providers.runtime import Providers
 
 router = APIRouter()
 
@@ -119,14 +127,17 @@ class AskIn(BaseModel):
 
 @router.post("/documents", response_model=DocumentOut)
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     lease_id: str = Form(...),
     kind: str = Form("original"),
     signed_date: date | None = Form(None),
     session: AsyncSession = Depends(get_session),
+    providers: Providers = ProvidersDep,
 ) -> DocumentOut:
     if kind not in ("original", "addendum"):
         raise HTTPException(400, "kind must be 'original' or 'addendum'")
+    limits.enforce(request, "upload", limits.UPLOAD_PER_HOUR)
 
     suffix = Path(file.filename or "upload.pdf").suffix or ".pdf"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -137,10 +148,16 @@ async def upload_document(
             session,
             path=tmp_path,
             lease_id=lease_id,
+            providers=providers,
             kind=kind,
             signed_date=signed_date,
             display_name=file.filename,
         )
+    except ProviderCallError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    except EmbeddingSpaceMismatch as exc:
+        # 409: the file is fine, it conflicts with what's already stored.
+        raise HTTPException(409, str(exc)) from exc
     except (ScannedPdfError, UnreadableDocumentError) as exc:
         # Neither is a server error — they're documents we can't read, and the
         # two need different things from the user ("send me a digital copy" vs
@@ -190,15 +207,29 @@ async def document_text(
 
 @router.post("/leases/{lease_id}/ask", response_model=AnswerOut)
 async def ask(
-    lease_id: str, body: AskIn, session: AsyncSession = Depends(get_session)
+    lease_id: str,
+    body: AskIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    providers: Providers = ProvidersDep,
 ) -> AnswerOut:
     question = body.question.strip()
     if not question:
         raise HTTPException(400, "question must not be empty")
+    limits.enforce(request, "ask", limits.ASK_PER_HOUR)
 
-    result = await answer_question(
-        session, lease_id=lease_id, question=question, clause_type=body.clause_type
-    )
+    try:
+        result = await answer_question(
+            session,
+            lease_id=lease_id,
+            question=question,
+            providers=providers,
+            clause_type=body.clause_type,
+        )
+    except ProviderCallError as exc:
+        # Surface it rather than degrade silently: the caller configured a
+        # provider, so a weaker offline answer would misrepresent what ran.
+        raise HTTPException(exc.status, str(exc)) from exc
 
     cited = set(result.answer.citations)
     citations = [
@@ -266,3 +297,9 @@ async def list_traces(
         }
         for t in traces
     ]
+
+
+@router.get("/providers")
+async def providers_endpoint() -> dict:
+    """Which providers this deployment offers, and whether demo mode is live."""
+    return provider_catalogue()

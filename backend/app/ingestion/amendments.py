@@ -34,9 +34,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.config import get_settings
 from app.db.models import Amendment, Clause, Document
-from app.providers.llm import LLMUnavailable, get_llm, llm_available, object_schema
+from app.providers.llm import LLMUnavailable, object_schema
+from app.providers.runtime import Providers
 
 REPLACES = "replaces"
 AMENDS = "amends"
@@ -100,7 +100,9 @@ _AMENDS_VERB = re.compile(
 )
 
 
-async def detect_amendments(session: AsyncSession, lease_id: str) -> list[Amendment]:
+async def detect_amendments(
+    session: AsyncSession, lease_id: str, providers: Providers
+) -> list[Amendment]:
     """(Re)build the override graph for one lease. Idempotent."""
     documents = list(
         (
@@ -127,7 +129,7 @@ async def detect_amendments(session: AsyncSession, lease_id: str) -> list[Amendm
         if not targets:
             continue
 
-        detected = await _detect_for_document(addendum, targets)
+        detected = await _detect_for_document(addendum, targets, providers)
         for addendum_number, original_number, action, reason in detected:
             source = next((c for c in addendum.clauses if c.number == addendum_number), None)
             target = targets.get(original_number)
@@ -168,18 +170,18 @@ async def _clear_existing(session: AsyncSession, documents: list[Document]) -> N
 
 
 async def _detect_for_document(
-    addendum: Document, targets: dict[str, Clause]
+    addendum: Document, targets: dict[str, Clause], providers: Providers
 ) -> list[tuple[str, str, str, str]]:
-    if llm_available():
+    if providers.llm_available:
         try:
-            return await _detect_with_llm(addendum, targets)
+            return await _detect_with_llm(addendum, targets, providers)
         except LLMUnavailable:
             pass
     return _detect_with_regex(addendum, targets)
 
 
 async def _detect_with_llm(
-    addendum: Document, targets: dict[str, Clause]
+    addendum: Document, targets: dict[str, Clause], providers: Providers
 ) -> list[tuple[str, str, str, str]]:
     index_lines = [
         f"[{number}] {clause.heading or clause.text[:70]}"
@@ -187,8 +189,8 @@ async def _detect_with_llm(
     ]
     body = [f"[{c.number}] {c.heading}\n{c.text}" for c in addendum.clauses if c.text.strip()]
 
-    result = await get_llm().complete_json(
-        model=get_settings().model_for("smart"),
+    result = await providers.require_llm().complete_json(
+        model=providers.model_for("smart"),
         system=_SYSTEM,
         prompt=(
             "Clauses in the original lease:\n"

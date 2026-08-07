@@ -19,9 +19,8 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.db.models import Trace
-from app.providers.embeddings import get_embedder
+from app.providers.runtime import Providers
 from app.retrieval.search import Retrieved, search
 from app.synthesis import grounding
 from app.synthesis.answer import Draft, draft_answer
@@ -49,14 +48,17 @@ async def answer_question(
     *,
     lease_id: str,
     question: str,
+    providers: Providers,
     clause_type: str | None = None,
     persist_trace: bool = True,
 ) -> AskResult:
     started = time.perf_counter()
 
-    found = await search(session, lease_id=lease_id, query=question, clause_type=clause_type)
-    draft = await draft_answer(question, found.results)
-    checked = await grounding.gate(draft, found.results)
+    found = await search(
+        session, lease_id=lease_id, query=question, providers=providers, clause_type=clause_type
+    )
+    draft = await draft_answer(question, found.results, providers)
+    checked = await grounding.gate(draft, found.results, providers)
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     result = AskResult(
@@ -71,12 +73,13 @@ async def answer_question(
     )
 
     if persist_trace:
-        result.trace_id = str(await write_trace(session, result, draft))
+        result.trace_id = str(await write_trace(session, result, draft, providers))
     return result
 
 
-async def write_trace(session: AsyncSession, result: AskResult, draft: Draft):
-    settings = get_settings()
+async def write_trace(
+    session: AsyncSession, result: AskResult, draft: Draft, providers: Providers
+):
     trace = Trace(
         lease_id=result.lease_id,
         question=result.question,
@@ -89,12 +92,8 @@ async def write_trace(session: AsyncSession, result: AskResult, draft: Draft):
             "downgrade_reason": result.downgrade_reason,
         },
         latency_ms=result.latency_ms,
-        model_versions={
-            "llm_provider": settings.resolved_llm_provider(),
-            "smart": settings.model_for("smart"),
-            "cheap": settings.model_for("cheap"),
-            "embedding": get_embedder().name,
-        },
+        # describe() carries provider and model names but never key material.
+        model_versions=providers.describe(),
     )
     session.add(trace)
     await session.commit()

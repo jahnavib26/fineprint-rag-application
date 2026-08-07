@@ -28,8 +28,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from app.config import get_settings
-from app.providers.llm import LLMUnavailable, get_llm, llm_available, object_schema
+from app.providers.llm import LLMUnavailable, object_schema
+from app.providers.runtime import Providers
 from app.retrieval.search import Retrieved
 from app.synthesis.answer import Draft, not_covered
 
@@ -144,14 +144,16 @@ class GateResult:
         return [v.to_trace() for v in self.verdicts]
 
 
-async def gate(draft: Draft, retrieved: list[Retrieved]) -> GateResult:
+async def gate(
+    draft: Draft, retrieved: list[Retrieved], providers: Providers
+) -> GateResult:
     """Verify a draft; downgrade it to not_covered if it doesn't hold up."""
     if not draft.is_covered:
         return GateResult(answer=draft)
 
     by_number = {hit.clause.number: hit for hit in retrieved}
-    claims = await decompose(draft)
-    verdicts = await verify(claims, by_number)
+    claims = await decompose(draft, providers)
+    verdicts = await verify(claims, by_number, providers)
 
     failures = [v for v in verdicts if v.failed and v.load_bearing]
     if failures:
@@ -167,11 +169,11 @@ async def gate(draft: Draft, retrieved: list[Retrieved]) -> GateResult:
     return GateResult(answer=draft, verdicts=verdicts)
 
 
-async def decompose(draft: Draft) -> list[Claim]:
-    if llm_available():
+async def decompose(draft: Draft, providers: Providers) -> list[Claim]:
+    if providers.llm_available:
         try:
-            result = await get_llm().complete_json(
-                model=get_settings().model_for("cheap"),
+            result = await providers.require_llm().complete_json(
+                model=providers.model_for("cheap"),
                 system=_DECOMPOSE_SYSTEM,
                 prompt=f"Drafted answer:\n\n{draft.answer}",
                 schema=_DECOMPOSE_SCHEMA,
@@ -193,22 +195,24 @@ async def decompose(draft: Draft) -> list[Claim]:
     return _split_sentences(draft)
 
 
-async def verify(claims: list[Claim], by_number: dict[str, Retrieved]) -> list[Verdict]:
+async def verify(
+    claims: list[Claim], by_number: dict[str, Retrieved], providers: Providers
+) -> list[Verdict]:
     if not claims:
         return []
-    if llm_available():
+    if providers.llm_available:
         try:
-            return await _verify_with_llm(claims, by_number)
+            return await _verify_with_llm(claims, by_number, providers)
         except LLMUnavailable:
             pass
     return [_verify_lexically(c, by_number) for c in claims]
 
 
 async def _verify_with_llm(
-    claims: list[Claim], by_number: dict[str, Retrieved]
+    claims: list[Claim], by_number: dict[str, Retrieved], providers: Providers
 ) -> list[Verdict]:
-    result = await get_llm().complete_json(
-        model=get_settings().model_for("cheap"),
+    result = await providers.require_llm().complete_json(
+        model=providers.model_for("cheap"),
         system=_VERIFY_SYSTEM,
         prompt=_verify_prompt(claims, by_number),
         schema=_VERIFY_SCHEMA,

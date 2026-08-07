@@ -20,7 +20,7 @@ import math
 import re
 from typing import Protocol
 
-from app.config import EMBEDDING_DIMENSIONS, get_settings
+from app.config import EMBEDDING_DIMENSIONS
 
 DIMENSIONS = EMBEDDING_DIMENSIONS
 
@@ -178,25 +178,5 @@ def _batched(items: list[str], size: int):
         yield items[i : i + size]
 
 
-_embedder: Embedder | None = None
-
-
-def get_embedder() -> Embedder:
-    global _embedder
-    if _embedder is not None:
-        return _embedder
-
-    settings = get_settings()
-    provider = settings.resolved_embedding_provider()
-    key = settings.api_key_for(provider)
-    model = settings.resolved_embedding_model()
-
-    if provider == "offline" or not key:
-        _embedder = HashingEmbedder()
-    else:
-        _embedder = {
-            "voyage": VoyageEmbedder,
-            "openai": OpenAIEmbedder,
-            "gemini": GeminiEmbedder,
-        }[provider](key, model)
-    return _embedder
+def embedding_provider_names() -> list[str]:
+    return ["voyage", "openai", "gemini"]

@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from app.config import get_settings
-from app.providers.llm import LLMUnavailable, get_llm, llm_available, object_schema
+from app.providers.llm import LLMUnavailable, object_schema
+from app.providers.runtime import Providers
 from app.retrieval.search import Retrieved
 
 ANSWERED = "answered"
@@ -91,22 +91,26 @@ def not_covered(nearest_topic: str = "", model: str = "") -> Draft:
     return Draft(status=NOT_COVERED, answer="", nearest_topic=nearest_topic, model=model)
 
 
-async def draft_answer(question: str, retrieved: list[Retrieved]) -> Draft:
+async def draft_answer(
+    question: str, retrieved: list[Retrieved], providers: Providers
+) -> Draft:
     if not retrieved:
         # Nothing cleared the relevance floor. Refuse without spending a call —
         # a model given no clauses can only guess.
         return not_covered(model="none")
-    if not llm_available():
+    if not providers.llm_available:
         return _offline_draft(question, retrieved)
     try:
-        return await _llm_draft(question, retrieved)
+        return await _llm_draft(question, retrieved, providers)
     except LLMUnavailable:
         return _offline_draft(question, retrieved)
 
 
-async def _llm_draft(question: str, retrieved: list[Retrieved]) -> Draft:
-    model = get_settings().model_for("smart")
-    result = await get_llm().complete_json(
+async def _llm_draft(
+    question: str, retrieved: list[Retrieved], providers: Providers
+) -> Draft:
+    model = providers.model_for("smart")
+    result = await providers.require_llm().complete_json(
         model=model,
         system=_SYSTEM,
         prompt=_prompt(question, retrieved),

@@ -1,3 +1,6 @@
+import { providerHeaders } from "./providers";
+import type { Credentials, ProviderCatalogue } from "./providers";
+
 // Types mirror backend/app/api/routes.py. Kept hand-written rather than
 // generated so the shapes the UI actually depends on are visible in one place.
 
@@ -59,10 +62,27 @@ export type DocumentText = {
   clauses: Clause[];
 };
 
+// Set once at startup by App; every request picks up whatever is current.
+let credentials: Credentials | null = null;
+export function setCredentials(next: Credentials | null) {
+  credentials = next;
+}
+
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `${response.status} ${response.statusText}`);
+    // FastAPI puts the human-readable message in `detail`. Every 4xx this app
+    // raises is written for the person reading it — a rejected key, a scanned
+    // PDF, a mismatched embedding space — so unwrap it rather than showing
+    // them the JSON envelope.
+    const body = await response.text();
+    let message = body;
+    try {
+      const parsed = JSON.parse(body);
+      if (typeof parsed?.detail === "string") message = parsed.detail;
+    } catch {
+      // Not JSON (a proxy error page, say) — show it as-is.
+    }
+    throw new Error(message || `${response.status} ${response.statusText}`);
   }
   return response.json() as Promise<T>;
 }
@@ -78,10 +98,12 @@ export const api = {
   documentText: (documentId: string) =>
     fetch(`/api/documents/${documentId}/text`).then(json<DocumentText>),
 
+  providers: () => fetch("/api/providers").then(json<ProviderCatalogue>),
+
   ask: (leaseId: string, question: string) =>
     fetch(`/api/leases/${encodeURIComponent(leaseId)}/ask`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...providerHeaders(credentials) },
       body: JSON.stringify({ question }),
     }).then(json<Answer>),
 
@@ -91,8 +113,10 @@ export const api = {
     form.append("lease_id", leaseId);
     form.append("kind", kind);
     if (signedDate) form.append("signed_date", signedDate);
-    return fetch("/api/documents", { method: "POST", body: form }).then(
-      json<DocumentSummary>,
-    );
+    return fetch("/api/documents", {
+      method: "POST",
+      body: form,
+      headers: providerHeaders(credentials),
+    }).then(json<DocumentSummary>);
   },
 };

@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.config import get_settings
-from app.providers.embeddings import get_embedder
+from app.providers.runtime import server_providers
 
 # Populated by the Docker build; absent in local dev, where Vite serves the UI.
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -60,11 +60,13 @@ async def health() -> dict:
     """Reports which providers are live, so a surprising answer can be traced
     to a misconfigured key rather than debugged as a retrieval problem."""
     settings = get_settings()
+    demo = server_providers(settings)
     return {
         "status": "ok",
         "llm_provider": settings.resolved_llm_provider(),
         "embedding_provider": settings.resolved_embedding_provider(),
-        "embedding_model": get_embedder().name,
+        "embedding_model": demo.embedder.name,
+        "demo_available": settings.resolved_llm_provider() != "offline",
         "models": {
             "smart": settings.model_for("smart"),
             "cheap": settings.model_for("cheap"),

@@ -42,6 +42,7 @@ sys.path.insert(0, str(REPO_ROOT / "backend"))
 from app.config import get_settings  # noqa: E402
 from app.db.session import get_engine, get_sessionmaker  # noqa: E402
 from app.pipeline import answer_question  # noqa: E402
+from app.providers.runtime import server_providers  # noqa: E402
 
 CASES_DIR = Path(__file__).resolve().parent / "cases"
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
@@ -112,11 +113,12 @@ def load_cases() -> list[Case]:
     return cases
 
 
-async def run_case(session, case: Case) -> Outcome:
+async def run_case(session, case: Case, providers) -> Outcome:
     result = await answer_question(
         session,
         lease_id=case.lease_id,
         question=case.question,
+        providers=providers,
         persist_trace=False,  # eval runs would otherwise flood the trace table
     )
     return Outcome(
@@ -231,11 +233,14 @@ async def main() -> int:
     args = parser.parse_args()
 
     cases = load_cases()
+    # One provider set for the whole run: the suite measures a single
+    # configuration, and the report records which one.
+    providers = server_providers()
     sessionmaker = get_sessionmaker()
     outcomes: list[Outcome] = []
     async with sessionmaker() as session:
         for case in cases:
-            outcome = await run_case(session, case)
+            outcome = await run_case(session, case, providers)
             outcomes.append(outcome)
             if not args.quiet:
                 mark = "PASS" if outcome.passed else "FAIL"

@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.config import get_settings  # noqa: E402
 from app.db.session import get_engine, get_sessionmaker  # noqa: E402
 from app.pipeline import answer_question  # noqa: E402
+from app.providers.runtime import server_providers  # noqa: E402
 
 QUESTIONS = [
     ("maple-court", "Can I have a cat?"),
@@ -38,7 +39,12 @@ async def main() -> int:
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         for lease_id, question in QUESTIONS:
-            result = await answer_question(session, lease_id=lease_id, question=question)
+            result = await answer_question(
+                session,
+                lease_id=lease_id,
+                question=question,
+                providers=server_providers(),
+            )
 
             print(f"Q ({lease_id}): {question}")
             print(f"  retrieved: {[r.clause.number for r in result.retrieved] or '—'}")

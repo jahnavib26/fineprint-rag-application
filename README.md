@@ -183,17 +183,40 @@ docker compose --profile app up --build   # localhost:8080
 including what's deliberately *not* production-ready:
 [deploy/README.md](deploy/README.md).
 
-## Providers
+## Providers, and bringing your own key
 
-Three LLM providers and three embedding providers, chosen independently —
-Anthropic has no embeddings endpoint, so they're separate decisions. The
-provider is auto-selected from whichever key is present in `.env`, or pinned
-with `LLM_PROVIDER` / `EMBEDDING_PROVIDER`.
+Three LLM providers and three embedding providers, chosen **independently** —
+Anthropic has no embeddings endpoint, so they're separate decisions.
 
 | | options |
 |---|---|
 | LLM (classification, synthesis, gate, override detection) | Claude · GPT · Gemini |
 | Embeddings | Voyage · OpenAI · Gemini |
+
+A hosted instance serves two modes from one process:
+
+- **Demo** — the host's key, so a visitor can ask a question on arrival with
+  nothing to configure. Rate-limited, because it spends the host's money.
+- **Bring your own key** — pick a provider and model in the UI, paste a key,
+  and your lease is processed under *your* account. No rate limit; you're
+  spending your own budget.
+
+Keys are per-request: read from a header, used to build that request's clients,
+then dropped. Never written to the database, never in a trace row, never logged.
+This is why providers are passed explicitly through the pipeline rather than
+memoized in a module global — with a process-wide client, the first visitor's
+key would silently serve everyone after them.
+
+Two consequences worth knowing:
+
+- **A configured key that fails is surfaced, not swallowed.** A rejected key
+  returns "OpenAI rejected the API key" rather than quietly falling back to
+  offline heuristics, which would hand you a weaker answer while looking like
+  it worked.
+- **A lease and its addenda must use the same embedding provider.** Vectors
+  from different models aren't comparable, and cosine across two spaces returns
+  plausible numbers ranked by noise — so mixing them is refused at upload
+  rather than silently corrupting search.
 
 **With no keys at all, everything still runs** on deterministic offline
 providers — a hashed lexical embedder and a keyword classifier. That's what

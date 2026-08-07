@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnswerView } from "./components/AnswerView";
 import { DocumentPane } from "./components/DocumentPane";
+import { ProviderPanel } from "./components/ProviderPanel";
 import { UploadPanel } from "./components/UploadPanel";
-import { api } from "./lib/api";
+import { api, setCredentials } from "./lib/api";
+import { EMPTY_CREDENTIALS } from "./lib/providers";
+import type { Credentials, ProviderCatalogue } from "./lib/providers";
 import type { Answer, Clause, DocumentSummary, DocumentText } from "./lib/api";
 
 type Turn = { question: string; answer: Answer | null; error?: string };
@@ -19,11 +22,19 @@ export default function App() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
-  const [providers, setProviders] = useState<Record<string, unknown> | null>(null);
+  const [catalogue, setCatalogue] = useState<ProviderCatalogue | null>(null);
+  const [credentials, setCreds] = useState<Credentials>(EMPTY_CREDENTIALS);
 
   useEffect(() => {
-    api.health().then(setProviders).catch(() => setProviders(null));
+    api.providers().then(setCatalogue).catch(() => setCatalogue(null));
   }, []);
+
+  // The api module reads this on every request, so a key change takes effect
+  // immediately without threading it through each call site.
+  const updateCredentials = (next: Credentials) => {
+    setCreds(next);
+    setCredentials(next);
+  };
 
   const refreshDocuments = useCallback(async () => {
     const docs = await api.documents(leaseId).catch(() => []);
@@ -107,11 +118,11 @@ export default function App() {
             onChange={(e) => setLeaseId(e.target.value)}
             aria-label="Lease id"
           />
-          {providers && (
-            <span className="muted small">
-              {String(providers.llm_provider)} · {String(providers.embedding_provider)}
-            </span>
-          )}
+          <ProviderPanel
+            catalogue={catalogue}
+            credentials={credentials}
+            onChange={updateCredentials}
+          />
         </div>
       </header>
 

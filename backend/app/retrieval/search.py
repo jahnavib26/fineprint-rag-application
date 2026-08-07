@@ -22,7 +22,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.db.models import Amendment, Clause, Document, Embedding
-from app.providers.embeddings import get_embedder
+from app.providers.runtime import Providers
 
 
 @dataclass
@@ -70,12 +70,13 @@ async def search(
     *,
     lease_id: str,
     query: str,
+    providers: Providers,
     clause_type: str | None = None,
     top_k: int | None = None,
 ) -> SearchResult:
     settings = get_settings()
     top_k = top_k or settings.top_k
-    embedder = get_embedder()
+    embedder = providers.embedder
     floor = settings.min_similarity
     if floor is None:
         floor = embedder.relevance_floor

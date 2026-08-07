@@ -19,11 +19,39 @@ from __future__ import annotations
 import json
 from typing import Any, Protocol
 
-from app.config import get_settings
-
 
 class LLMUnavailable(RuntimeError):
-    """No provider is configured, or the configured one declined the request."""
+    """No provider is configured — callers fall back to offline heuristics."""
+
+
+class ProviderCallError(RuntimeError):
+    """A configured provider was called and failed: bad key, quota, outage.
+
+    Deliberately *not* a subclass of LLMUnavailable, because the two need
+    opposite handling. "No provider configured" is a known state we degrade
+    gracefully from. "Your key was rejected" must reach the user: silently
+    falling back would hand them a weaker offline answer while they believe
+    their key is working, which is the precise failure this project exists to
+    avoid — a system that looks like it works.
+    """
+
+    def __init__(self, message: str, *, status: int = 502) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+def _translate(provider: str, exc: Exception) -> ProviderCallError:
+    """Turn an SDK exception into something a tenant can act on."""
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if status == 401 or "api key" in str(exc).lower():
+        return ProviderCallError(
+            f"{provider} rejected the API key. Check it and try again.", status=401
+        )
+    if status == 429:
+        return ProviderCallError(
+            f"{provider} rate-limited or out of quota for this key.", status=429
+        )
+    return ProviderCallError(f"{provider} request failed: {exc}", status=502)
 
 
 class JSONCompleter(Protocol):
@@ -45,13 +73,16 @@ class AnthropicCompleter:
     async def complete_json(
         self, *, model: str, system: str, prompt: str, schema: dict[str, Any], max_tokens: int
     ) -> dict[str, Any]:
-        response = await self._client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-            output_config={"format": {"type": "json_schema", "schema": schema}},
-        )
+        try:
+                response = await self._client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+            )
+        except Exception as exc:
+            raise _translate("Claude", exc) from exc
         # A refusal arrives as a successful response with an empty/partial body;
         # reading content[0] blindly would raise something unhelpful.
         if response.stop_reason == "refusal":
@@ -71,18 +102,21 @@ class OpenAICompleter:
     async def complete_json(
         self, *, model: str, system: str, prompt: str, schema: dict[str, Any], max_tokens: int
     ) -> dict[str, Any]:
-        response = await self._client.chat.completions.create(
-            model=model,
-            max_completion_tokens=max_tokens,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {"name": "fineprint", "schema": schema, "strict": True},
-            },
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                model=model,
+                max_completion_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"name": "fineprint", "schema": schema, "strict": True},
+                },
+            )
+        except Exception as exc:
+            raise _translate("OpenAI", exc) from exc
         message = response.choices[0].message
         if message.refusal:
             raise LLMUnavailable(f"OpenAI declined this request: {message.refusal}")
@@ -100,16 +134,19 @@ class GeminiCompleter:
     async def complete_json(
         self, *, model: str, system: str, prompt: str, schema: dict[str, Any], max_tokens: int
     ) -> dict[str, Any]:
-        response = await self._client.aio.models.generate_content(
-            model=model,
-            contents=prompt,
-            config={
-                "system_instruction": system,
-                "response_mime_type": "application/json",
-                "response_schema": _gemini_schema(schema),
-                "max_output_tokens": max_tokens,
-            },
-        )
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+                config={
+                    "system_instruction": system,
+                    "response_mime_type": "application/json",
+                    "response_schema": _gemini_schema(schema),
+                    "max_output_tokens": max_tokens,
+                },
+            )
+        except Exception as exc:
+            raise _translate("Gemini", exc) from exc
         if not response.text:
             raise LLMUnavailable("Gemini returned no content")
         return json.loads(response.text)
@@ -139,35 +176,8 @@ def _gemini_schema(schema: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-_completer: JSONCompleter | None = None
-
-
-def get_llm() -> JSONCompleter:
-    """The configured provider, or raise if we're running offline."""
-    global _completer
-    if _completer is not None:
-        return _completer
-
-    settings = get_settings()
-    provider = settings.resolved_llm_provider()
-    key = settings.api_key_for(provider)
-    if provider == "offline" or not key:
-        raise LLMUnavailable(
-            "No LLM provider configured. Copy .env.example to .env and set one of "
-            "ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY, or run offline "
-            "(keyword classification, extractive answers)."
-        )
-
-    _completer = {
-        "anthropic": AnthropicCompleter,
-        "openai": OpenAICompleter,
-        "gemini": GeminiCompleter,
-    }[provider](key)
-    return _completer
-
-
-def llm_available() -> bool:
-    return get_settings().resolved_llm_provider() != "offline"
+def llm_provider_names() -> list[str]:
+    return ["anthropic", "openai", "gemini"]
 
 
 def object_schema(properties: dict[str, Any], required: list[str]) -> dict[str, Any]:
