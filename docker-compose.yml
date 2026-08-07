@@ -37,7 +37,6 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
-      APP_PASSWORD: ${APP_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

@@ -72,13 +72,6 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://fineprint:fineprint@localhost:5433/fineprint"
 
     # --- Hosting ---------------------------------------------------------
-    # Set to gate the whole app behind HTTP Basic. Unset (the default) leaves
-    # it open, which is fine on localhost and is not fine on a public URL:
-    # a lease is a private legal document, and every upload here is readable
-    # by anyone who can reach the origin.
-    app_password: str | None = None
-    app_username: str = "tenant"
-
     # Extra browser origins allowed to call the API. Only needed when the
     # frontend is deployed separately; the single-container deployment serves
     # both from one origin and needs none.

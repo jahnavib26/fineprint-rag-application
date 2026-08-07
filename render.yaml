@@ -19,11 +19,6 @@ services:
       # Render emits postgres://…; config.database_connect_args() rewrites it
       # for asyncpg, so it can be used as-is.
 
-      # Set this in the dashboard. Without it the deployment is a public URL
-      # where anyone can read and upload leases.
-      - key: APP_PASSWORD
-        sync: false
-
       # Optional. With none set, the app runs on offline providers: it works,
       # but retrieval is lexical and answers are extractive. See README.
       - key: ANTHROPIC_API_KEY

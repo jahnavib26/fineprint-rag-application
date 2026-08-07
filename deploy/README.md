@@ -12,16 +12,14 @@ flowchart LR
 
     subgraph C["One container"]
       direction TB
-      GATE["HTTP Basic gate<br/>APP_PASSWORD"]
-      GATE --> UI["Built React UI<br/>/assets + SPA fallback"]
-      GATE --> API["FastAPI<br/>/api/*"]
+      UI["Built React UI<br/>/assets + SPA fallback"]
+      API["FastAPI<br/>/api/*"]
     end
 
     C -->|"asyncpg over TLS"| P[("Managed Postgres<br/>+ pgvector")]
     API -.->|"optional key"| L["LLM provider<br/>Claude · GPT · Gemini"]
     API -.->|"optional key"| E["Embedding provider<br/>Voyage · OpenAI · Gemini"]
 
-    style GATE fill:#fbf0e2,stroke:#9a5b1f
     style C fill:#faf9f7,stroke:#7a5c3e
 ```
 
@@ -34,28 +32,12 @@ runs `CREATE EXTENSION IF NOT EXISTS vector` itself, so a managed Postgres that
 qualify. `deploy/entrypoint.sh` runs `alembic upgrade head` before serving, so
 there is no separate release step.
 
-## Before you expose it publicly
-
-**Set `APP_PASSWORD`.** A hosted instance holds people's leases — private legal
-documents — and has no accounts. Without that variable the URL is open: anyone
-who finds it can upload leases and read every lease already there. With it, the
-whole app sits behind HTTP Basic (`/api/health` stays open so platform health
-checks work). Change `APP_USERNAME` from its `tenant` default if you like.
-
-This is deliberately the right size for a portfolio demo or a single-tenant
-deployment, and deliberately *not* multi-tenant auth. Real per-user accounts
-would mean a users table, session handling, and row-level scoping on every
-query — worth building if this ever serves more than one household, and clearly
-out of scope until then.
-
 ## Environment variables
 
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | yes | `postgres://`, `postgresql://`, and `?sslmode=…` are all normalised for asyncpg automatically |
 | `PORT` | injected by host | Defaults to 8000 |
-| `APP_PASSWORD` | for public URLs | Enables HTTP Basic across the app |
-| `APP_USERNAME` | no | Defaults to `tenant` |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` | no | Any one enables real synthesis, classification, and the grounding gate |
 | `VOYAGE_API_KEY` | no | Or reuse the OpenAI/Gemini key for embeddings |
 | `MAX_UPLOAD_MB` | no | Defaults to 25 |
@@ -70,8 +52,8 @@ that with no code change and no redeploy of the frontend.
 ## Render (blueprint included)
 
 `render.yaml` declares the web service and the database. Push to GitHub, then
-**New → Blueprint**, point it at the repo, and set `APP_PASSWORD` (plus any
-provider key) as the sync-disabled values it prompts for.
+**New → Blueprint**, point it at the repo, and fill in any provider keys as the
+sync-disabled values it prompts for.
 
 ## Fly.io
 
@@ -79,7 +61,7 @@ provider key) as the sync-disabled values it prompts for.
 fly launch --no-deploy          # generates fly.toml from the Dockerfile
 fly postgres create             # or attach Neon/Supabase instead
 fly postgres attach <db-name>   # sets DATABASE_URL
-fly secrets set APP_PASSWORD=... ANTHROPIC_API_KEY=...
+fly secrets set ANTHROPIC_API_KEY=...
 fly deploy
 ```
 
@@ -95,14 +77,13 @@ Build and run the image, give it `DATABASE_URL` and `$PORT`:
 docker build -t fineprint .
 docker run -p 8080:8000 \
   -e DATABASE_URL='postgresql://user:pass@host/db?sslmode=require' \
-  -e APP_PASSWORD='...' \
   fineprint
 ```
 
 To run the whole stack locally exactly as it will run deployed:
 
 ```bash
-APP_PASSWORD=demo docker compose --profile app up --build
+docker compose --profile app up --build
 ```
 
 Then open http://localhost:8080.
@@ -112,12 +93,15 @@ Then open http://localhost:8080.
 Worth being explicit, since "it deploys" and "it's production-ready" get
 conflated:
 
-- **No accounts or tenant isolation.** One password guards one shared corpus.
+- **No authentication at all.** Every lease lives in one shared corpus keyed by
+  a guessable `lease_id`, so anyone who can reach the URL can read and upload.
+  Keep the deployment private (an unlisted URL is not privacy — prefer your
+  host's built-in access control, a VPN, or simply not deploying real leases).
 - **Traces store question text and retrieved clause text indefinitely.** That's
   the point of them for debugging, and it's personal data with no retention
   policy or delete endpoint behind it.
-- **No rate limiting.** With a provider key configured, an authenticated user
-  can spend money in a loop.
+- **No rate limiting.** With a provider key configured, anyone who can reach
+  the app can spend money in a loop.
 - **Single process, no queue.** Ingestion is synchronous inside the request; a
   60-page lease with a real classifier will hold a worker for a while.
 - **Scanned leases are rejected**, not OCR'd.

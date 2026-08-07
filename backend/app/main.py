@@ -8,7 +8,6 @@ the Vite server proxies `/api` here instead, so the same relative URLs work.
 
 from __future__ import annotations
 
-import secrets
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -39,45 +38,6 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def require_password(request: Request, call_next):
-    """Gate everything behind HTTP Basic when APP_PASSWORD is set.
-
-    A hosted instance holds people's leases — private legal documents — and
-    has no accounts, so without this anyone with the URL can read and upload
-    them. Basic auth is a blunt instrument, but it is the right size for a
-    single-tenant demo and costs no UI. Unset, it's a no-op, so local
-    development is unaffected.
-    """
-    settings = get_settings()
-    if not settings.app_password or request.url.path == "/api/health":
-        return await call_next(request)
-
-    import base64
-    import binascii
-
-    header = request.headers.get("authorization", "")
-    unauthorized = Response(
-        status_code=401,
-        headers={"WWW-Authenticate": 'Basic realm="FinePrint"'},
-    )
-    if not header.startswith("Basic "):
-        return unauthorized
-    try:
-        decoded = base64.b64decode(header[6:]).decode()
-        username, _, password = decoded.partition(":")
-    except (binascii.Error, UnicodeDecodeError, ValueError):
-        return unauthorized
-
-    # compare_digest on both halves: a plain == leaks length and prefix
-    # through timing, and the username is as guessable as the password here.
-    ok_user = secrets.compare_digest(username, settings.app_username)
-    ok_pass = secrets.compare_digest(password, settings.app_password)
-    if not (ok_user and ok_pass):
-        return unauthorized
-    return await call_next(request)
-
-
-@app.middleware("http")
 async def limit_upload_size(request: Request, call_next):
     """Reject oversized uploads before anything reads them into memory."""
     settings = get_settings()
@@ -98,11 +58,7 @@ app.include_router(router, prefix="/api")
 @app.get("/api/health")
 async def health() -> dict:
     """Reports which providers are live, so a surprising answer can be traced
-    to a misconfigured key rather than debugged as a retrieval problem.
-
-    Deliberately exempt from the password gate: platform health checks can't
-    authenticate, and it discloses no lease content.
-    """
+    to a misconfigured key rather than debugged as a retrieval problem."""
     settings = get_settings()
     return {
         "status": "ok",
