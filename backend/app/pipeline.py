@@ -20,10 +20,11 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Trace
+from app.graph import MAX_ATTEMPTS, final_answer, run_ask_graph
 from app.providers.runtime import Providers
-from app.retrieval.search import Retrieved, search
+from app.retrieval.search import Retrieved
 from app.synthesis import grounding
-from app.synthesis.answer import Draft, draft_answer
+from app.synthesis.answer import Draft
 
 
 @dataclass
@@ -37,6 +38,10 @@ class AskResult:
     downgrade_reason: str = ""
     latency_ms: int = 0
     trace_id: str | None = None
+    # How many drafts it took. >1 means the gate rejected one and the repair
+    # loop rewrote it.
+    attempts: int = 1
+    history: list[dict] = field(default_factory=list)
 
     @property
     def is_covered(self) -> bool:
@@ -54,26 +59,33 @@ async def answer_question(
 ) -> AskResult:
     started = time.perf_counter()
 
-    found = await search(
-        session, lease_id=lease_id, query=question, providers=providers, clause_type=clause_type
+    state = await run_ask_graph(
+        session,
+        lease_id=lease_id,
+        question=question,
+        providers=providers,
+        clause_type=clause_type,
     )
-    draft = await draft_answer(question, found.results, providers)
-    checked = await grounding.gate(draft, found.results, providers)
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     result = AskResult(
         question=question,
         lease_id=lease_id,
-        answer=checked.answer,
-        retrieved=found.results,
-        verdicts=checked.verdicts,
-        downgraded=checked.downgraded,
-        downgrade_reason=checked.downgrade_reason,
+        answer=final_answer(state),
+        retrieved=state.get("retrieved", []),
+        verdicts=state.get("verdicts", []),
+        downgraded=state.get("downgraded", False),
+        downgrade_reason=state.get("downgrade_reason", ""),
         latency_ms=latency_ms,
+        attempts=state.get("attempts", 1),
+        history=state.get("history", []),
     )
 
     if persist_trace:
-        result.trace_id = str(await write_trace(session, result, draft, providers))
+        # The first draft, not the last: a downgrade is only diagnosable
+        # against what the gate originally objected to.
+        first = state.get("first_draft") or result.answer
+        result.trace_id = str(await write_trace(session, result, first, providers))
     return result
 
 
@@ -93,7 +105,12 @@ async def write_trace(
         },
         latency_ms=result.latency_ms,
         # describe() carries provider and model names but never key material.
-        model_versions=providers.describe(),
+        model_versions={
+            **providers.describe(),
+            "attempts": result.attempts,
+            "max_attempts": MAX_ATTEMPTS,
+            "repair_history": result.history,
+        },
     )
     session.add(trace)
     await session.commit()

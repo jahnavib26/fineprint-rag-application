@@ -39,19 +39,32 @@ flowchart TD
     O --> D["Draft answer, citing<br/>clause numbers inline"]
     D --> C["Decompose into atomic claims"]
     C --> G{"Is every load-bearing claim<br/>supported by the clause it cites?"}
-    G -->|"no"| R
     G -->|"yes"| A["<b>Answer with citations</b><br/>click to highlight in the lease"]
+    G -->|"no, 2nd attempt"| R
+    G -->|"no, 1st attempt"| P["Repair: feed the failed<br/>claims back as feedback"]
+    P -.->|"rewrite"| D
     A --> T[("trace row")]
     R --> T
 
     style R fill:#fbf0e2,stroke:#9a5b1f
     style A fill:#eef3ee,stroke:#2f6b4f
+    style P fill:#f2e9df,stroke:#7a5c3e
     style G stroke-width:2px
 ```
 
-Note that both paths end at the same place. A refusal is an outcome the system
-is designed to produce, not an error it falls into — which is why it's stored,
-measured, and given its own UI component.
+Note that both terminal paths end at the same place. A refusal is an outcome the
+system is designed to produce, not an error it falls into — which is why it's
+stored, measured, and given its own UI component.
+
+**The dotted back-edge is why this is a LangGraph state machine** rather than a
+straight function. A gate failure used to discard the answer outright, so one
+overreaching sentence cost the tenant a question the lease genuinely answered —
+trading a wrong answer for a wrong refusal, which the eval suite also counts as
+a failure. Now the failed claims are fed back as specific feedback and the draft
+is rewritten once, bounded at two attempts because a claim that survives
+targeted feedback is usually one the clauses simply don't support. LangGraph owns
+the state, the branch, and the cycle; the nodes are the same retrieval, drafting
+and gating functions used everywhere else.
 
 ## How a lease gets ingested
 
