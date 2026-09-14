@@ -60,6 +60,15 @@ keyword list would score it as a near-miss rather than a failure. So each of
 these cases carries a `must_not_cite` on the superseded clause: citing 15 here
 is wrong even if the prose happens to mention the addendum.
 
+## The repair loop's blind spot in offline mode
+
+`gate downgrades: 0` in the offline baseline is not the gate working perfectly —
+it's the lexical gate passing verbatim quotes trivially, because the offline
+drafter only ever quotes clauses back. Since the gate never fails offline, the
+repair loop never fires, and its effect on false-refusal rate is **unmeasured
+here by construction**. Measuring it needs an API key; the metric to watch is
+false refusals falling while correct refusals hold.
+
 ## Metrics
 
 `retrieval_recall` and `citation_correctness` are reported separately on
